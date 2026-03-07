@@ -1,0 +1,20 @@
+# Built application files
+*.apk
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+build/
+**/build/
+.gradle/
+local.properties
+*.log
+.idea/
+*.iml
+captures/
+navigation.json
+*.jks
+*.keystore
+.kotlin/

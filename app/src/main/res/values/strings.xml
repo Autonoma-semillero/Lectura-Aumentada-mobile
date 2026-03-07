@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lectura Inclusiva</string>
+    <string name="webar_title">Lectura Inclusiva</string>
+    <string name="webar_subtitle">Aprende palabras paso a paso con una actividad guiada y amigable.</string>
+    <string name="retry">Intentar de nuevo</string>
+    <string name="simulate_read">Practicar palabra</string>
+    <string name="dismiss">Entendido</string>
+    <string name="loading">Preparando actividad...</string>
+    <string name="friendly_load_error">No pudimos cargar la actividad en este momento.</string>
+    <string name="friendly_error_title">No pudimos abrir la actividad.</string>
+    <string name="friendly_navigation_blocked">Se bloqueó una navegación no permitida para proteger la actividad.</string>
+    <string name="hero_title">Sesión de lectura</string>
+    <string name="hero_subtitle">Explora palabras, escucha y practica con refuerzo positivo.</string>
+    <string name="current_word">Palabra actual</string>
+    <string name="word_position">Palabra %1$d de %2$d</string>
+    <string name="practices_count">Prácticas completadas: %1$d</string>
+    <string name="word_category">Categoría: %1$s</string>
+    <string name="previous_word">Anterior</string>
+    <string name="next_word">Siguiente</string>
+    <string name="activity_panel_title">Actividad visual</string>
+    <string name="practice_feedback">Muy bien. Palabra practicada: %1$s</string>
+    <string name="empty_word">Sin palabras disponibles</string>
+</resources>
