@@ -21,4 +21,8 @@
     <string name="activity_panel_title">Actividad visual</string>
     <string name="practice_feedback">Muy bien. Palabra practicada: %1$s</string>
     <string name="empty_word">Sin palabras disponibles</string>
+
+    <string name="splash_title">Lectura Inclusiva</string>
+    <string name="splash_subtitle">¡Bienvenidos a tu aventura!</string>
+    <string name="splash_loading">Cargando...</string>
 </resources>
