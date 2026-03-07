@@ -127,7 +127,7 @@ fun WebArScreen(
                     modifier = Modifier
                         .background(
                             brush = Brush.linearGradient(
-                                listOf(Color(0xFF1E5AA8), Color(0xFF45A6D8))
+                                listOf(Color(0xFFE53734), Color(0xFFBF2D2B))
                             )
                         )
                         .padding(18.dp)
@@ -152,7 +152,7 @@ fun WebArScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 tonalElevation = 1.dp,
-                color = Color(0xFFFFF8F2)
+                color = Color(0xFFFFF3F3)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -167,7 +167,7 @@ fun WebArScreen(
                         text = currentUnit?.word ?: stringResource(R.string.empty_word),
                         style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFD86B1B)
+                        color = Color(0xFFE53734)
                     )
                     Text(
                         text = stringResource(
@@ -423,5 +423,6 @@ private fun isAllowedLearningUrl(url: String?): Boolean {
 
     return false
 }
+
 
 

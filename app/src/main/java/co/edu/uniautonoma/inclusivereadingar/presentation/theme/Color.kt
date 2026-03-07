@@ -2,10 +2,10 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
-val OceanBlue = Color(0xFF1E5AA8)
-val DeepBlue = Color(0xFF113A70)
-val SkyBlue = Color(0xFF45A6D8)
-val WarmOrange = Color(0xFFD86B1B)
-val SoftCream = Color(0xFFFFF8F2)
-val MistBackground = Color(0xFFF3F7FD)
-val InkDark = Color(0xFF162538)
+val PrimaryRed = Color(0xFFE53734)
+val PrimaryRedDark = Color(0xFFBF2D2B)
+val AccentRose = Color(0xFFF5C9C8)
+val BackgroundLight = Color(0xFFF8F6F6)
+val BackgroundDark = Color(0xFF211111)
+val SurfaceLight = Color(0xFFFFFFFF)
+val SurfaceDark = Color(0xFF2C1A1A)
