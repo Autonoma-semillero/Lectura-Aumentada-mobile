@@ -10,6 +10,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.theme.InclusiveReading
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         enableEdgeToEdge()
         setContent {
             InclusiveReadingArTheme {
