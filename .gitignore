@@ -17,4 +17,5 @@ captures/
 navigation.json
 *.jks
 *.keystore
+keystore.properties
 .kotlin/
