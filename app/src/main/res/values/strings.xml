@@ -25,4 +25,9 @@
     <string name="splash_title">Lectura Inclusiva</string>
     <string name="splash_subtitle">¡Bienvenidos a tu aventura!</string>
     <string name="splash_loading">Cargando...</string>
+
+    <string name="scan_card_action">Escanear tarjeta</string>
+    <string name="scan_card_hint">Coloca tu tarjeta aquí</string>
+    <string name="scan_card_permission_message">Necesitamos acceso a la cámara para escanear la tarjeta.</string>
+    <string name="back">Atrás</string>
 </resources>
