@@ -19,3 +19,5 @@ navigation.json
 *.keystore
 keystore.properties
 .kotlin/
+.DS_Store
+**/.DS_Store
