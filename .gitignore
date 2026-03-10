@@ -17,4 +17,7 @@ captures/
 navigation.json
 *.jks
 *.keystore
+keystore.properties
 .kotlin/
+.DS_Store
+**/.DS_Store
