@@ -12,7 +12,9 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,6 +59,7 @@ import co.edu.uniautonoma.inclusivereadingar.R
 
 @Composable
 fun ScanCardRoute(
+    categoryName: String,
     onBackClick: () -> Unit,
     onScanCardClick: () -> Unit
 ) {
@@ -139,12 +142,32 @@ fun ScanCardRoute(
                     cameraController = cameraController
                 )
 
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 24.dp, vertical = 20.dp),
-                    contentAlignment = Alignment.Center
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Column(
+                        modifier = Modifier.padding(top = 96.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = categoryName,
+                            color = Color.White,
+                            fontSize = 30.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Enfoca una tarjeta para continuar a la práctica",
+                            color = Color.White.copy(alpha = 0.92f),
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(0.9f)
@@ -176,6 +199,8 @@ fun ScanCardRoute(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             } else {
                 Box(
