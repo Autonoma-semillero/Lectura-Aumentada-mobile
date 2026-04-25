@@ -16,6 +16,6 @@ class MainActivityTest {
 
     @Test
     fun appLaunches_andShowsMainTitle() {
-        composeRule.onNodeWithText("Lectura Inclusiva").assertIsDisplayed()
+        composeRule.onNodeWithText("¡Hola de nuevo!").assertIsDisplayed()
     }
 }
