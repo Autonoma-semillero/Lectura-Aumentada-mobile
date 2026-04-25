@@ -95,11 +95,16 @@ class PracticeCardsViewModel(
         }
     }
 
+    fun moveToCard(index: Int) {
+        val state = _uiState.value
+        if (index < 0 || index > state.cards.lastIndex || index == state.currentIndex) return
+        _uiState.update { it.copy(currentIndex = index, errorMessage = null) }
+        registerViewedCurrentCard()
+    }
+
     fun moveToNextCard() {
         val state = _uiState.value
-        if (state.currentIndex >= state.cards.lastIndex) {
-            return
-        }
+        if (state.currentIndex >= state.cards.lastIndex) return
         _uiState.update { it.copy(currentIndex = it.currentIndex + 1, errorMessage = null) }
         registerViewedCurrentCard()
     }
