@@ -12,6 +12,17 @@ val keystoreProperties = Properties().apply {
         load(FileInputStream(keystorePropertiesFile))
     }
 }
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties().apply {
+    if (localPropertiesFile.exists()) {
+        load(FileInputStream(localPropertiesFile))
+    }
+}
+val backendBaseUrl = (
+    findProperty("backendBaseUrl") as String?
+        ?: localProperties.getProperty("backendBaseUrl")
+        ?: "http://10.0.2.2:3000"
+).trim().removeSuffix("/")
 
 android {
     namespace = "co.edu.uniautonoma.inclusivereadingar"
@@ -24,6 +35,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
     }
 
     signingConfigs {
@@ -68,6 +80,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
