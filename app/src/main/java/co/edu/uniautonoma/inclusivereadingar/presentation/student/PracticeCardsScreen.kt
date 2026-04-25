@@ -1,5 +1,13 @@
 package co.edu.uniautonoma.inclusivereadingar.presentation.student
 
+import android.media.MediaPlayer
+import android.net.Uri
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,13 +17,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,11 +38,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.edu.uniautonoma.inclusivereadingar.appContainer
+import co.edu.uniautonoma.inclusivereadingar.config.BackendConfig
+import co.edu.uniautonoma.inclusivereadingar.domain.model.WordCard
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.PracticeCardsUiState
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.PracticeCardsViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.PracticeCardsViewModelFactory
@@ -64,9 +84,8 @@ fun PracticeCardsRoute(
         uiState = uiState,
         onBackClick = onBackClick,
         onRetry = { viewModel.load(categoryId, categoryName) },
-        onNextClick = viewModel::moveToNextCard,
-        onPreviousClick = viewModel::moveToPreviousCard,
-        onCompleteClick = viewModel::completeCurrentWord
+        onCompleteClick = viewModel::completeCurrentWord,
+        onCardChanged = viewModel::moveToCard
     )
 }
 
@@ -76,17 +95,28 @@ fun PracticeCardsScreen(
     uiState: PracticeCardsUiState,
     onBackClick: () -> Unit,
     onRetry: () -> Unit,
-    onNextClick: () -> Unit,
-    onPreviousClick: () -> Unit,
-    onCompleteClick: () -> Unit
+    onCompleteClick: () -> Unit,
+    onCardChanged: (Int) -> Unit
 ) {
-    val currentCard = uiState.currentCard
+    val pagerState = rememberPagerState(pageCount = { uiState.cards.size })
+
+    // Pager → ViewModel
+    LaunchedEffect(pagerState.currentPage) {
+        onCardChanged(pagerState.currentPage)
+    }
+    // ViewModel → Pager (e.g. after completeCurrentWord advances the index)
+    LaunchedEffect(uiState.currentIndex) {
+        if (!pagerState.isScrollInProgress && pagerState.currentPage != uiState.currentIndex) {
+            pagerState.animateScrollToPage(uiState.currentIndex)
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
+        // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -105,29 +135,9 @@ fun PracticeCardsScreen(
             Text(
                 text = categoryName,
                 fontWeight = FontWeight.Bold,
-                fontSize = 24.sp
+                fontSize = 22.sp
             )
             Spacer(modifier = Modifier.size(48.dp))
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            repeat(uiState.cards.size.coerceAtMost(7)) { index ->
-                val activeIndex = uiState.currentIndex.coerceAtMost(6)
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(10.dp)
-                        .background(
-                            color = if (index == activeIndex) Color(0xFFE53734) else Color(0xFFE5E7EB),
-                            shape = CircleShape
-                        )
-                )
-            }
         }
 
         when {
@@ -158,14 +168,6 @@ fun PracticeCardsScreen(
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
-                            Text(
-                                text = "Intentar de nuevo",
-                                color = Color(0xFFE53734),
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .background(Color.Transparent)
-                                    .padding(4.dp)
-                            )
                             Button(onClick = onRetry) {
                                 Text(text = "Reintentar")
                             }
@@ -174,104 +176,152 @@ fun PracticeCardsScreen(
                 }
             }
 
-            currentCard == null -> {
+            uiState.cards.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = "No hay palabras disponibles para esta temática.",
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(24.dp)
+                        modifier = Modifier.padding(24.dp),
+                        color = Color(0xFF64748B)
                     )
                 }
             }
 
             else -> {
-                Box(
+                // Progress dots
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = currentCard.word.uppercase(),
-                            color = Color(0xFFE53734),
-                            fontSize = 72.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 78.sp
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Palabra ${uiState.currentIndex + 1} de ${uiState.cards.size}",
-                            color = Color(0xFF64748B),
-                            fontSize = 18.sp
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Completadas: ${uiState.completedCount}",
-                            color = Color(0xFF475569),
-                            fontSize = 16.sp
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Button(
-                            onClick = onCompleteClick,
+                    val dotCount = uiState.cards.size.coerceAtMost(7)
+                    val activeIndex = pagerState.currentPage.coerceAtMost(6)
+                    repeat(dotCount) { index ->
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(58.dp),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFE53734),
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Text(
-                                text = "Marcar como leída",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Button(
-                                onClick = onPreviousClick,
-                                enabled = uiState.currentIndex > 0,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(54.dp),
-                                shape = RoundedCornerShape(20.dp)
-                            ) {
-                                Text(text = "Anterior")
-                            }
-                            Button(
-                                onClick = onNextClick,
-                                enabled = uiState.currentIndex < uiState.cards.lastIndex,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(54.dp),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF4A90E2),
-                                    contentColor = Color.White
+                                .padding(horizontal = 4.dp)
+                                .size(10.dp)
+                                .background(
+                                    color = if (index == activeIndex) Color(0xFFE53734)
+                                    else Color(0xFFE5E7EB),
+                                    shape = CircleShape
                                 )
-                            ) {
-                                Text(text = "Siguiente")
-                            }
-                        }
+                        )
                     }
+                }
+
+                // Word pager
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.weight(1f)
+                ) { page ->
+                    WordCardPage(card = uiState.cards[page])
+                }
+
+                // Mark as read button
+                Button(
+                    onClick = onCompleteClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                        .navigationBarsPadding()
+                        .height(60.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE53734),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "Marcar como leída",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun WordCardPage(card: WordCard) {
+    val infiniteTransition = rememberInfiniteTransition(label = "wordPulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = card.word.uppercase(),
+            color = Color(0xFFE53734),
+            fontSize = 96.sp,
+            fontWeight = FontWeight.ExtraBold,
+            textAlign = TextAlign.Center,
+            lineHeight = 100.sp,
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+        )
+
+        if (!card.audioUrl.isNullOrBlank()) {
+            AudioButton(
+                audioUrl = card.audioUrl,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 28.dp, bottom = 12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AudioButton(audioUrl: String, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    val player = remember { MediaPlayer() }
+
+    DisposableEffect(audioUrl) {
+        onDispose {
+            player.release()
+        }
+    }
+
+    val resolvedUrl = if (audioUrl.startsWith("http")) {
+        audioUrl
+    } else {
+        "${BackendConfig.DEFAULT_REMOTE_BASE_URL}$audioUrl"
+    }
+
+    IconButton(
+        onClick = {
+            if (!isPlaying) {
+                runCatching {
+                    player.reset()
+                    player.setDataSource(context, Uri.parse(resolvedUrl))
+                    player.setOnPreparedListener { it.start() }
+                    player.setOnCompletionListener { isPlaying = false }
+                    player.prepareAsync()
+                    isPlaying = true
+                }
+            }
+        },
+        modifier = modifier.size(56.dp)
+    ) {
+        Icon(
+            imageVector = if (isPlaying) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
+            contentDescription = if (isPlaying) "Reproduciendo" else "Reproducir palabra",
+            tint = Color(0xFFE53734),
+            modifier = Modifier.size(32.dp)
+        )
     }
 }
