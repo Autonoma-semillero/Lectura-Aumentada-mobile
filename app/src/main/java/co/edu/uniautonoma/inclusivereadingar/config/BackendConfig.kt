@@ -4,7 +4,7 @@ import co.edu.uniautonoma.inclusivereadingar.BuildConfig
 
 object BackendConfig {
     const val API_PREFIX: String = "/api"
-    private const val DEFAULT_REMOTE_BASE_URL: String = BuildConfig.BACKEND_BASE_URL
+    const val DEFAULT_REMOTE_BASE_URL: String = BuildConfig.BACKEND_BASE_URL
 
     fun resolveBaseUrl(overrideUrl: String?): String {
         val candidate = overrideUrl?.trim().orEmpty().ifEmpty { DEFAULT_REMOTE_BASE_URL }
