@@ -39,6 +39,19 @@ class BackendHttpClient(
         accessToken = accessToken
     )
 
+    suspend fun requestRaw(
+        method: String,
+        path: String,
+        body: JSONObject? = null,
+        accessToken: String? = null
+    ): String = request(
+        method = method,
+        path = path,
+        queryParams = emptyMap(),
+        body = body?.toString(),
+        accessToken = accessToken
+    )
+
     private suspend fun request(
         method: String,
         path: String,

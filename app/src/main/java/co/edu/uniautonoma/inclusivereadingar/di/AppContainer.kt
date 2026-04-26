@@ -6,9 +6,11 @@ import co.edu.uniautonoma.inclusivereadingar.data.remote.BackendHttpClient
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpAuthApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpCategoriesApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpProgressApi
+import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpTeacherApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpWordCardsApi
 import co.edu.uniautonoma.inclusivereadingar.data.repository.AuthRepository
 import co.edu.uniautonoma.inclusivereadingar.data.repository.StudentContentRepository
+import co.edu.uniautonoma.inclusivereadingar.data.repository.TeacherContentRepository
 
 class AppContainer(context: Context) {
     private val appContext = context.applicationContext
@@ -29,6 +31,13 @@ class AppContainer(context: Context) {
             categoriesApi = HttpCategoriesApi(httpClient),
             wordCardsApi = HttpWordCardsApi(httpClient),
             progressApi = HttpProgressApi(httpClient)
+        )
+    }
+
+    val teacherContentRepository: TeacherContentRepository by lazy {
+        TeacherContentRepository(
+            sessionStore = sessionStore,
+            teacherApi = HttpTeacherApi(httpClient)
         )
     }
 }
