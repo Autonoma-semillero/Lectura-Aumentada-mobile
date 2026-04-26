@@ -91,7 +91,7 @@ fun TeacherStudentProgressScreen(
         }
 
         when {
-            uiState.isLoading -> androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            uiState.isLoading -> androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Color(0xFFE53734))
             }
 

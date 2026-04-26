@@ -21,7 +21,6 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -121,19 +120,13 @@ fun ManageThemesScreen(
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 24.sp
                 )
-                IconButton(onClick = {}) {
-                    Icon(
-                        imageVector = Icons.Rounded.Settings,
-                        contentDescription = null,
-                        tint = primary
-                    )
-                }
+                Box(modifier = Modifier.size(48.dp))
             }
 
             when {
                 uiState.isLoading -> {
                     Box(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(color = primary)

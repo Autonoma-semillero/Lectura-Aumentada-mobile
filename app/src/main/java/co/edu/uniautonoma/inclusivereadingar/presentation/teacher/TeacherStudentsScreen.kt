@@ -94,7 +94,7 @@ fun TeacherStudentsScreen(
             }
 
             when {
-                uiState.isLoading -> Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                uiState.isLoading -> Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Color(0xFFE53734))
                 }
 

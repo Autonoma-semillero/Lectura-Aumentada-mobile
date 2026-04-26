@@ -32,7 +32,6 @@ import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -197,13 +196,11 @@ fun EditWordCardScreen(
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 22.sp
             )
-            IconButton(onClick = {}) {
-                Icon(imageVector = Icons.Rounded.Settings, contentDescription = null, tint = primary)
-            }
+            Box(modifier = Modifier.size(48.dp))
         }
 
         if (uiState.isLoading) {
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = primary)
             }
         } else {
