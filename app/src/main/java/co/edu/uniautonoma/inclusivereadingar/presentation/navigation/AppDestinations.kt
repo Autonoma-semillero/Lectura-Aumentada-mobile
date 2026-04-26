@@ -12,6 +12,9 @@ object AppDestinations {
     const val TEACHER_PROGRESS_ROUTE = "teacher_progress/{studentId}/{studentName}"
     const val TEACHER_THEME_FORM_ROUTE = "teacher_theme_form?themeId={themeId}"
     const val TEACHER_WORD_CARD_ROUTE = "teacher_word_card"
+    const val TEACHER_CATEGORY_CARDS_ROUTE = "teacher_category_cards/{categoryId}/{categoryName}"
+    const val TEACHER_CREATE_WORD_CARD_ROUTE = "teacher_create_word_card?categoryId={categoryId}"
+    const val TEACHER_EDIT_WORD_CARD_ROUTE = "teacher_edit_word_card/{cardId}"
     const val START_ROUTE = LOGIN_ROUTE
     const val PRACTICE_ROUTE = "practice/{categoryId}/{categoryName}"
 
@@ -26,6 +29,17 @@ object AppDestinations {
     fun practiceRoute(categoryId: String, categoryName: String): String {
         return "practice/$categoryId/${android.net.Uri.encode(categoryName)}"
     }
+
+    fun teacherCategoryCardsRoute(categoryId: String, categoryName: String): String {
+        return "teacher_category_cards/$categoryId/${android.net.Uri.encode(categoryName)}"
+    }
+
+    fun teacherCreateWordCardRoute(categoryId: String? = null): String {
+        return if (categoryId != null) "teacher_create_word_card?categoryId=$categoryId"
+        else "teacher_create_word_card"
+    }
+
+    fun teacherEditWordCardRoute(cardId: String): String = "teacher_edit_word_card/$cardId"
 
     fun teacherThemeFormRoute(themeId: String? = null): String {
         return if (themeId != null) {

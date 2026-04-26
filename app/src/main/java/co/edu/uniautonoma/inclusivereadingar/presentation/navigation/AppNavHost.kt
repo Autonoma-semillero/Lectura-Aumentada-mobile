@@ -27,13 +27,16 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.student.StudentLoginRo
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.ThemesRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.SessionViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.SessionViewModelFactory
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CategoryCardsRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateEditThemeRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateWordCardRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.EditWordCardRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.ManageThemesRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherDomanPlansRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherLoginRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentProgressRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentsRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.WordCardCategoryListRoute
 
 @Composable
 fun AppNavHost() {
@@ -174,8 +177,76 @@ fun AppNavHost() {
         }
 
         composable(route = AppDestinations.TEACHER_WORD_CARD_ROUTE) {
+            WordCardCategoryListRoute(
+                onBack = navController::navigateBackOrTeacherThemes,
+                onCategoryClick = { category ->
+                    navController.navigate(
+                        AppDestinations.teacherCategoryCardsRoute(category.id, category.name)
+                    )
+                },
+                onThemesClick = navController::navigateToTeacherThemes,
+                onStudentsClick = navController::navigateToTeacherStudents
+            )
+        }
+
+        composable(
+            route = AppDestinations.TEACHER_CATEGORY_CARDS_ROUTE,
+            arguments = listOf(
+                navArgument("categoryId") { type = NavType.StringType },
+                navArgument("categoryName") { type = NavType.StringType }
+            )
+        ) { entry ->
+            val categoryId = entry.arguments?.getString("categoryId").orEmpty()
+            val categoryName = entry.arguments?.getString("categoryName").orEmpty()
+            CategoryCardsRoute(
+                categoryId = categoryId,
+                categoryName = categoryName,
+                onBack = navController::navigateBackOrTeacherWordCards,
+                onCreateCardClick = { catId ->
+                    navController.navigate(AppDestinations.teacherCreateWordCardRoute(catId))
+                },
+                onEditCardClick = { cardId ->
+                    navController.navigate(AppDestinations.teacherEditWordCardRoute(cardId))
+                },
+                onThemesClick = navController::navigateToTeacherThemes,
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onWordCardsClick = navController::navigateToTeacherWordCards
+            )
+        }
+
+        composable(
+            route = AppDestinations.TEACHER_CREATE_WORD_CARD_ROUTE,
+            arguments = listOf(
+                navArgument("categoryId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { entry ->
+            val categoryId = entry.arguments?.getString("categoryId")
             CreateWordCardRoute(
-                onBack = navController::navigateBackOrTeacherThemes
+                preSelectedCategoryId = categoryId,
+                onBack = navController::navigateBackOrTeacherWordCards,
+                onThemesClick = navController::navigateToTeacherThemes,
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onWordCardsClick = navController::navigateToTeacherWordCards
+            )
+        }
+
+        composable(
+            route = AppDestinations.TEACHER_EDIT_WORD_CARD_ROUTE,
+            arguments = listOf(
+                navArgument("cardId") { type = NavType.StringType }
+            )
+        ) { entry ->
+            val cardId = entry.arguments?.getString("cardId").orEmpty()
+            EditWordCardRoute(
+                cardId = cardId,
+                onBack = navController::navigateBackOrTeacherWordCards,
+                onThemesClick = navController::navigateToTeacherThemes,
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onWordCardsClick = navController::navigateToTeacherWordCards
             )
         }
 
@@ -251,6 +322,12 @@ private fun NavHostController.navigateToTeacherThemeForm(themeId: String? = null
 private fun NavHostController.navigateToTeacherWordCards() {
     navigate(AppDestinations.TEACHER_WORD_CARD_ROUTE) {
         launchSingleTop = true
+    }
+}
+
+private fun NavHostController.navigateBackOrTeacherWordCards() {
+    if (!popBackStack()) {
+        navigateToTeacherWordCards()
     }
 }
 
