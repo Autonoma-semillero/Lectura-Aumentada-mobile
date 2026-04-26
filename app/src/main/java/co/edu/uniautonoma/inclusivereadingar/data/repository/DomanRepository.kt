@@ -42,6 +42,22 @@ class DomanRepository(
         return plansApi.getToday(studentId, session.accessToken)
     }
 
+    suspend fun deletePlan(planId: String) {
+        val session = requireSession()
+        plansApi.deletePlan(planId, session.accessToken)
+    }
+
+    suspend fun getTodayPlans(studentId: String): List<DailyPlanSummary> {
+        val session = requireSession()
+        val today = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            java.time.LocalDate.now().toString()
+        } else {
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                .format(java.util.Calendar.getInstance().time)
+        }
+        return plansApi.getByDateRange(studentId, today, today, session.accessToken)
+    }
+
     suspend fun generatePlan(studentId: String, categoryId: String? = null, force: Boolean = true): DailyPlanSummary {
         val session = requireSession()
         return plansApi.generate(studentId, categoryId, force, session.accessToken)

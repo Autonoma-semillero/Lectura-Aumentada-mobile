@@ -1,6 +1,7 @@
 package co.edu.uniautonoma.inclusivereadingar.data.remote
 
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DailyPlanSummary
+import org.json.JSONArray
 import org.json.JSONObject
 
 interface DomanPlansApi {
@@ -11,6 +12,13 @@ interface DomanPlansApi {
         force: Boolean,
         accessToken: String?
     ): DailyPlanSummary
+    suspend fun getByDateRange(
+        studentId: String,
+        from: String,
+        to: String,
+        accessToken: String?
+    ): List<DailyPlanSummary>
+    suspend fun deletePlan(planId: String, accessToken: String?)
 }
 
 class HttpDomanPlansApi(
@@ -41,6 +49,52 @@ class HttpDomanPlansApi(
             accessToken = accessToken
         )
         return parsePlanSummary(response)
+    }
+
+    override suspend fun getByDateRange(
+        studentId: String,
+        from: String,
+        to: String,
+        accessToken: String?
+    ): List<DailyPlanSummary> {
+        val response = httpClient.get(
+            path = "/doman/daily-plans",
+            queryParams = mapOf("student_id" to studentId, "from" to from, "to" to to),
+            accessToken = accessToken
+        )
+        val jsonArray = JSONArray(response)
+        return buildList {
+            for (index in 0 until jsonArray.length()) {
+                add(parsePlanFromList(jsonArray.getJSONObject(index)))
+            }
+        }
+    }
+
+    override suspend fun deletePlan(planId: String, accessToken: String?) {
+        httpClient.requestRaw(
+            method = "DELETE",
+            path = "/doman/daily-plans/$planId",
+            body = null,
+            accessToken = accessToken
+        )
+    }
+
+    private fun parsePlanFromList(json: JSONObject): DailyPlanSummary {
+        val cardsCount = json.optInt("target_cards_count", 0)
+        val sessionsCount = json.optInt("target_sessions_count", 0)
+        return DailyPlanSummary(
+            planId = json.getString("id"),
+            studentId = json.getString("student_id"),
+            categoryId = json.getString("category_id"),
+            targetCardsCount = cardsCount,
+            targetSessionsCount = sessionsCount,
+            cardsCount = cardsCount,
+            sessionsCount = sessionsCount,
+            pendingSessionsCount = 0,
+            completedSessionsCount = 0,
+            nextSessionId = null,
+            words = emptyList()
+        )
     }
 
     private fun parsePlanSummary(rawJson: String): DailyPlanSummary {
