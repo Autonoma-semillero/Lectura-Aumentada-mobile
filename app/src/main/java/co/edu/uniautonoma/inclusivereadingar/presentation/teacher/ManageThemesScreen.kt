@@ -17,10 +17,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -52,7 +52,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel.Mana
 
 @Composable
 fun ManageThemesRoute(
-    onBack: () -> Unit,
+    onLogoutClick: () -> Unit,
     onCreateThemeClick: () -> Unit,
     onEditThemeClick: (String) -> Unit,
     onWordCardsClick: () -> Unit,
@@ -67,7 +67,7 @@ fun ManageThemesRoute(
 
     ManageThemesScreen(
         uiState = uiState,
-        onBack = onBack,
+        onLogoutClick = onLogoutClick,
         onRetry = viewModel::load,
         onCreateThemeClick = onCreateThemeClick,
         onEditThemeClick = onEditThemeClick,
@@ -82,7 +82,7 @@ fun ManageThemesRoute(
 @Composable
 fun ManageThemesScreen(
     uiState: ManageThemesUiState,
-    onBack: () -> Unit,
+    onLogoutClick: () -> Unit,
     onRetry: () -> Unit,
     onCreateThemeClick: () -> Unit,
     onEditThemeClick: (String) -> Unit,
@@ -108,19 +108,19 @@ fun ManageThemesScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Volver",
-                        tint = primary
-                    )
-                }
+                Box(modifier = Modifier.size(48.dp))
                 Text(
                     text = "Gestionar Temáticas",
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 24.sp
                 )
-                Box(modifier = Modifier.size(48.dp))
+                IconButton(onClick = onLogoutClick) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ExitToApp,
+                        contentDescription = "Cerrar sesión",
+                        tint = primary
+                    )
+                }
             }
 
             when {
@@ -319,3 +319,5 @@ private fun TeacherThemeCard(
         }
     }
 }
+
+

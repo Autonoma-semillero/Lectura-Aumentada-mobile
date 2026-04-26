@@ -2,10 +2,16 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +49,7 @@ fun AppNavHost() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val container = context.appContainer()
+    var showLogoutDialog by remember { mutableStateOf(false) }
     val sessionViewModel: SessionViewModel = viewModel(
         factory = SessionViewModelFactory(container.authRepository)
     )
@@ -101,13 +108,13 @@ fun AppNavHost() {
         composable(route = AppDestinations.THEMES_ROUTE) {
             ThemesRoute(
                 onThemeClick = { category -> navController.navigateToDomanSession(category.id, category.name) },
-                onLogoutClick = sessionViewModel::logout
+                onLogoutClick = { showLogoutDialog = true }
             )
         }
 
         composable(route = AppDestinations.TEACHER_THEMES_ROUTE) {
             ManageThemesRoute(
-                onBack = sessionViewModel::logout,
+                onLogoutClick = { showLogoutDialog = true },
                 onCreateThemeClick = { navController.navigateToTeacherThemeForm() },
                 onEditThemeClick = { themeId -> navController.navigateToTeacherThemeForm(themeId) },
                 onWordCardsClick = navController::navigateToTeacherWordCards,
@@ -285,6 +292,28 @@ fun AppNavHost() {
             )
         }
     }
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Cerrar sesión") },
+            text = { Text("¿Seguro que quieres cerrar sesión?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        sessionViewModel.logout()
+                    }
+                ) {
+                    Text("Cerrar sesión")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }
 
 private fun NavHostController.navigateToThemes() {
@@ -364,3 +393,5 @@ private fun NavHostController.navigateBackOrTeacherStudents() {
 private fun String?.isLoginRoute(): Boolean {
     return this == AppDestinations.LOGIN_ROUTE || this == AppDestinations.TEACHER_LOGIN_ROUTE
 }
+
+
