@@ -54,24 +54,16 @@ class TeacherDomanPlansViewModel(
             }.onSuccess {
                 load(studentId)
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    isGenerating = false,
-                    errorMessage = error.toUiMessage("No fue posible regenerar el plan Doman.")
-                )
+                val message = if (error is BackendException && error.statusCode == 409) {
+                    "Este plan ya tiene sesiones completadas y no puede regenerarse. " +
+                        "Espera a que finalice el día o crea un nuevo plan mañana."
+                } else {
+                    error.toUiMessage("No fue posible regenerar el plan Doman.")
+                }
+                _uiState.value = _uiState.value.copy(isGenerating = false, errorMessage = message)
             }
         }
     }
-}
-
-private fun Throwable.toUiMessage(fallback: String): String {
-    if (this is BackendException) {
-        if (statusCode == 409) {
-            return "Este plan ya tiene sesiones completadas y no puede regenerarse. " +
-                "Espera a que finalice el día o crea un nuevo plan mañana."
-        }
-        return message
-    }
-    return message?.takeIf { it.isNotBlank() } ?: fallback
 }
 
 class TeacherDomanPlansViewModelFactory(
