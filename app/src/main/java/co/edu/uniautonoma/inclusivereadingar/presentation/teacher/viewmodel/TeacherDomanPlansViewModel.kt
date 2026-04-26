@@ -3,6 +3,7 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import co.edu.uniautonoma.inclusivereadingar.data.remote.BackendException
 import co.edu.uniautonoma.inclusivereadingar.data.repository.DomanRepository
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DailyPlanSummary
 import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentProgressSummary
@@ -60,6 +61,17 @@ class TeacherDomanPlansViewModel(
             }
         }
     }
+}
+
+private fun Throwable.toUiMessage(fallback: String): String {
+    if (this is BackendException) {
+        if (statusCode == 409) {
+            return "Este plan ya tiene sesiones completadas y no puede regenerarse. " +
+                "Espera a que finalice el día o crea un nuevo plan mañana."
+        }
+        return message
+    }
+    return message?.takeIf { it.isNotBlank() } ?: fallback
 }
 
 class TeacherDomanPlansViewModelFactory(
