@@ -6,10 +6,13 @@ import co.edu.uniautonoma.inclusivereadingar.data.local.SessionStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.DataOutputStream
+import java.io.File
 import java.io.BufferedReader
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 
 class BackendHttpClient(
     private val sessionStore: SessionStore
@@ -51,6 +54,80 @@ class BackendHttpClient(
         body = body?.toString(),
         accessToken = accessToken
     )
+
+    suspend fun postMultipartFile(
+        path: String,
+        fieldName: String,
+        filePath: String,
+        mimeType: String?,
+        originalName: String?,
+        accessToken: String? = null
+    ): String = withContext(Dispatchers.IO) {
+        val file = File(filePath)
+        require(file.exists() && file.isFile) {
+            "Selected audio file does not exist: $filePath"
+        }
+
+        val baseUrl = sessionStore.resolveBackendBaseUrl()
+        val fullUrl = buildUrl(baseUrl, path, emptyMap())
+        val boundary = "Boundary-${UUID.randomUUID()}"
+
+        Log.d(TAG, "Request: POST $fullUrl (multipart)")
+
+        val connection = (URL(fullUrl).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = TIMEOUT_MS
+            readTimeout = TIMEOUT_MS
+            doInput = true
+            doOutput = true
+            useCaches = false
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            if (!accessToken.isNullOrBlank()) {
+                setRequestProperty("Authorization", "Bearer $accessToken")
+            }
+        }
+
+        try {
+            DataOutputStream(connection.outputStream).use { output ->
+                val lineEnd = "\r\n"
+                val twoHyphens = "--"
+                val filename = sanitizeFileName(originalName ?: file.name)
+                val resolvedMimeType = mimeType?.takeIf { it.isNotBlank() } ?: guessMimeType(filename)
+
+                output.writeBytes("$twoHyphens$boundary$lineEnd")
+                output.writeBytes(
+                    "Content-Disposition: form-data; name=\"$fieldName\"; filename=\"$filename\"$lineEnd"
+                )
+                output.writeBytes("Content-Type: $resolvedMimeType$lineEnd")
+                output.writeBytes(lineEnd)
+                file.inputStream().use { input -> input.copyTo(output) }
+                output.writeBytes(lineEnd)
+                output.writeBytes("$twoHyphens$boundary$twoHyphens$lineEnd")
+                output.flush()
+            }
+
+            val statusCode = connection.responseCode
+            val responseBody = readResponse(connection, statusCode)
+            Log.d(TAG, "Response: $statusCode $responseBody")
+            if (statusCode in 200..299) {
+                responseBody
+            } else {
+                throw BackendException(
+                    statusCode = statusCode,
+                    message = extractBackendMessage(responseBody, connection.responseMessage)
+                )
+            }
+        } catch (error: BackendException) {
+            Log.e(TAG, "Backend error on POST multipart $fullUrl", error)
+            throw error
+        } catch (error: Exception) {
+            Log.e(TAG, "Transport error on POST multipart $fullUrl", error)
+            throw error
+        } finally {
+            connection.disconnect()
+        }
+    }
 
     private suspend fun request(
         method: String,
@@ -142,6 +219,19 @@ class BackendHttpClient(
                 else -> fallback
             }
         }.getOrDefault(body.ifBlank { fallback })
+    }
+
+    private fun sanitizeFileName(filename: String): String =
+        filename.replace("\"", "").replace("\n", "").replace("\r", "").trim()
+            .ifBlank { "audio.m4a" }
+
+    private fun guessMimeType(filename: String): String {
+        val lower = filename.lowercase()
+        return when {
+            lower.endsWith(".mp3") -> "audio/mpeg"
+            lower.endsWith(".wav") -> "audio/wav"
+            else -> "audio/mp4"
+        }
     }
 
     private companion object {
