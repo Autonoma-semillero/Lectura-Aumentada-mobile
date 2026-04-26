@@ -22,6 +22,10 @@ import androidx.navigation.navArgument
 import co.edu.uniautonoma.inclusivereadingar.appContainer
 import co.edu.uniautonoma.inclusivereadingar.domain.model.CategorySummary
 import co.edu.uniautonoma.inclusivereadingar.presentation.screens.ScanCardRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateEditThemeRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateWordCardRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.ManageThemesRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherLoginRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.PracticeCardsRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.StudentLoginRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.ThemesRoute
@@ -45,16 +49,17 @@ fun AppNavHost() {
         }
 
         if (sessionState.session == null) {
-            if (currentRoute != AppDestinations.LOGIN_ROUTE) {
+            if (!currentRoute.isLoginRoute()) {
                 navController.navigate(AppDestinations.LOGIN_ROUTE) {
                     popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
                     launchSingleTop = true
                 }
             }
-        } else if (currentRoute == AppDestinations.LOGIN_ROUTE || currentRoute == null) {
-            navController.navigate(AppDestinations.THEMES_ROUTE) {
-                popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
-                launchSingleTop = true
+        } else if (currentRoute.isLoginRoute() || currentRoute == null) {
+            if (sessionState.session?.user?.roles.orEmpty().any { it == "teacher" || it == "admin" }) {
+                navController.navigateToTeacherThemes()
+            } else {
+                navController.navigateToThemes()
             }
         }
     }
@@ -69,7 +74,15 @@ fun AppNavHost() {
     NavHost(navController = navController, startDestination = AppDestinations.START_ROUTE) {
         composable(route = AppDestinations.LOGIN_ROUTE) {
             StudentLoginRoute(
-                onLoginSuccess = { navController.navigateToThemes() }
+                onLoginSuccess = {},
+                onTeacherLoginClick = { navController.navigate(AppDestinations.TEACHER_LOGIN_ROUTE) }
+            )
+        }
+
+        composable(route = AppDestinations.TEACHER_LOGIN_ROUTE) {
+            TeacherLoginRoute(
+                onLoginSuccess = {},
+                onStudentLoginClick = { navController.popBackStack() }
             )
         }
 
@@ -77,6 +90,38 @@ fun AppNavHost() {
             ThemesRoute(
                 onThemeClick = { category -> navController.navigateToPractice(category) },
                 onLogoutClick = sessionViewModel::logout
+            )
+        }
+
+        composable(route = AppDestinations.TEACHER_THEMES_ROUTE) {
+            ManageThemesRoute(
+                onBack = sessionViewModel::logout,
+                onCreateThemeClick = { navController.navigateToTeacherThemeForm() },
+                onEditThemeClick = { themeId -> navController.navigateToTeacherThemeForm(themeId) },
+                onWordCardsClick = navController::navigateToTeacherWordCards
+            )
+        }
+
+        composable(
+            route = AppDestinations.TEACHER_THEME_FORM_ROUTE,
+            arguments = listOf(
+                navArgument("themeId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { entry ->
+            CreateEditThemeRoute(
+                themeId = entry.arguments?.getString("themeId"),
+                onBack = navController::navigateBackOrTeacherThemes,
+                onWordCardsClick = navController::navigateToTeacherWordCards
+            )
+        }
+
+        composable(route = AppDestinations.TEACHER_WORD_CARD_ROUTE) {
+            CreateWordCardRoute(
+                onBack = navController::navigateBackOrTeacherThemes
             )
         }
 
@@ -123,6 +168,13 @@ private fun NavHostController.navigateToThemes() {
     }
 }
 
+private fun NavHostController.navigateToTeacherThemes() {
+    navigate(AppDestinations.TEACHER_THEMES_ROUTE) {
+        popUpTo(graph.findStartDestination().id) { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
 private fun NavHostController.navigateToPractice(category: CategorySummary) {
     navigate(AppDestinations.practiceRoute(category.id, category.name)) {
         launchSingleTop = true
@@ -135,8 +187,30 @@ private fun NavHostController.navigateToScanCard(category: CategorySummary) {
     }
 }
 
+private fun NavHostController.navigateToTeacherThemeForm(themeId: String? = null) {
+    navigate(AppDestinations.teacherThemeFormRoute(themeId)) {
+        launchSingleTop = true
+    }
+}
+
+private fun NavHostController.navigateToTeacherWordCards() {
+    navigate(AppDestinations.TEACHER_WORD_CARD_ROUTE) {
+        launchSingleTop = true
+    }
+}
+
 private fun NavHostController.navigateBackOrThemes() {
     if (!popBackStack()) {
         navigateToThemes()
     }
+}
+
+private fun NavHostController.navigateBackOrTeacherThemes() {
+    if (!popBackStack()) {
+        navigateToTeacherThemes()
+    }
+}
+
+private fun String?.isLoginRoute(): Boolean {
+    return this == AppDestinations.LOGIN_ROUTE || this == AppDestinations.TEACHER_LOGIN_ROUTE
 }

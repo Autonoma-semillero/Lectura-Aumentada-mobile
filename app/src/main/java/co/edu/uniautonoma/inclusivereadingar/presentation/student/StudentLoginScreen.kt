@@ -32,6 +32,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -51,7 +52,8 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.Auth
 
 @Composable
 fun StudentLoginRoute(
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onTeacherLoginClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -67,7 +69,8 @@ fun StudentLoginRoute(
         errorMessage = uiState.errorMessage,
         onEmailChange = viewModel::updateEmail,
         onPasswordChange = viewModel::updatePassword,
-        onLoginClick = { viewModel.login(onLoginSuccess) }
+        onLoginClick = { viewModel.login(onLoginSuccess) },
+        onTeacherLoginClick = onTeacherLoginClick
     )
 }
 
@@ -79,7 +82,8 @@ fun StudentLoginScreen(
     errorMessage: String?,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
-    onLoginClick: () -> Unit
+    onLoginClick: () -> Unit,
+    onTeacherLoginClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
     val background = Color(0xFFF8F6F6)
@@ -244,6 +248,14 @@ fun StudentLoginScreen(
                         lineHeight = 22.sp
                     )
                 }
+            }
+
+            TextButton(onClick = onTeacherLoginClick) {
+                Text(
+                    text = "Soy docente ->",
+                    color = textMuted,
+                    fontSize = 14.sp
+                )
             }
 
             Spacer(
