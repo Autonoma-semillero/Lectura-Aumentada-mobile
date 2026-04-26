@@ -18,10 +18,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -56,7 +56,8 @@ fun ManageThemesRoute(
     onBack: () -> Unit,
     onCreateThemeClick: () -> Unit,
     onEditThemeClick: (String) -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onStudentsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -74,7 +75,8 @@ fun ManageThemesRoute(
         onDeleteThemeClick = viewModel::requestDelete,
         onDeleteConfirm = viewModel::confirmDelete,
         onDeleteDismiss = viewModel::cancelDelete,
-        onWordCardsClick = onWordCardsClick
+        onWordCardsClick = onWordCardsClick,
+        onStudentsClick = onStudentsClick
     )
 }
 
@@ -88,7 +90,8 @@ fun ManageThemesScreen(
     onDeleteThemeClick: (String) -> Unit,
     onDeleteConfirm: () -> Unit,
     onDeleteDismiss: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onStudentsClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
 
@@ -190,7 +193,7 @@ fun ManageThemesScreen(
             TeacherBottomBar(
                 activeTab = TeacherTab.THEMES,
                 onThemesClick = {},
-                onStudentsClick = {},
+                onStudentsClick = onStudentsClick,
                 onWordCardsClick = onWordCardsClick
             )
         }
@@ -297,50 +300,26 @@ private fun TeacherThemeCard(
             }
 
             if (!category.description.isNullOrBlank()) {
-                Text(
-                    text = category.description,
-                    color = Color(0xFF475569)
-                )
+                Text(text = category.description, color = Color(0xFF475569))
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = onEditClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4A90E2),
-                        contentColor = Color.White
-                    ),
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4A90E2), contentColor = Color.White),
                     shape = RoundedCornerShape(18.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 6.dp)
-                    )
+                    Icon(Icons.Rounded.Edit, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
                     Text("Editar")
                 }
                 Button(
                     onClick = onDeleteClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFEE2E2),
-                        contentColor = primary
-                    ),
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFEE2E2), contentColor = primary),
                     shape = RoundedCornerShape(18.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Delete,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 6.dp)
-                    )
+                    Icon(Icons.Rounded.Delete, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
                     Text("Eliminar")
                 }
             }
