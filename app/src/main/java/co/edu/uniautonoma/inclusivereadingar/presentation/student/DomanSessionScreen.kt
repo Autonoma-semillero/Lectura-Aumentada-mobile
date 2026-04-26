@@ -1,7 +1,6 @@
 package co.edu.uniautonoma.inclusivereadingar.presentation.student
 
 import android.media.MediaPlayer
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -308,28 +307,56 @@ private fun AudioPlayButton(
     onPlayAudio: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val player = remember { MediaPlayer() }
+    val resolvedUrl = resolvePlaybackUrl(audioUrl, backendBaseUrl)
+    val player = remember(resolvedUrl) { MediaPlayer() }
+    var isPlaying by remember(resolvedUrl) { mutableStateOf(false) }
 
-    DisposableEffect(audioUrl) {
+    DisposableEffect(resolvedUrl) {
         onDispose { player.release() }
     }
 
-    val resolvedUrl = resolvePlaybackUrl(audioUrl, backendBaseUrl)
+    // Auto-play al aparecer cada tarjeta
+    LaunchedEffect(resolvedUrl) {
+        runCatching {
+            onPlayAudio()
+            player.reset()
+            player.setDataSource(resolvedUrl)
+            player.setOnErrorListener { _, _, _ -> isPlaying = false; true }
+            player.setOnCompletionListener { isPlaying = false }
+            player.setOnPreparedListener { it.start() }
+            isPlaying = true
+            player.prepareAsync()
+        }.onFailure { isPlaying = false }
+    }
 
     IconButton(
         onClick = {
-            runCatching {
-                onPlayAudio()
-                player.reset()
-                player.setDataSource(context, Uri.parse(resolvedUrl))
-                player.setOnPreparedListener { it.start() }
-                player.prepareAsync()
+            if (!isPlaying) {
+                runCatching {
+                    onPlayAudio()
+                    player.reset()
+                    player.setDataSource(resolvedUrl)
+                    player.setOnErrorListener { _, _, _ -> isPlaying = false; true }
+                    player.setOnCompletionListener { isPlaying = false }
+                    player.setOnPreparedListener { it.start() }
+                    isPlaying = true
+                    player.prepareAsync()
+                }.onFailure { isPlaying = false }
             }
         },
-        modifier = modifier.size(56.dp).background(Color(0xFFE53734).copy(alpha = 0.12f), CircleShape)
+        enabled = !isPlaying,
+        modifier = modifier
+            .size(56.dp)
+            .background(
+                Color(0xFFE53734).copy(alpha = if (isPlaying) 0.05f else 0.12f),
+                CircleShape
+            )
     ) {
-        Icon(Icons.Rounded.VolumeUp, contentDescription = "Escuchar palabra", tint = Color(0xFFE53734))
+        Icon(
+            imageVector = Icons.Rounded.VolumeUp,
+            contentDescription = "Escuchar palabra",
+            tint = Color(0xFFE53734).copy(alpha = if (isPlaying) 0.35f else 1f)
+        )
     }
 }
 
