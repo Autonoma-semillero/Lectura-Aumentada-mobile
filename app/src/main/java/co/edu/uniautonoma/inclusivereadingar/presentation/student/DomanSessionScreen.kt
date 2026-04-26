@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -65,10 +66,15 @@ fun DomanSessionRoute(
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
+    var backendBaseUrl by remember { mutableStateOf(BackendConfig.DEFAULT_REMOTE_BASE_URL) }
     val viewModel: DomanSessionViewModel = viewModel(
         factory = DomanSessionViewModelFactory(container.domanRepository)
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        backendBaseUrl = container.sessionStore.resolveBackendBaseUrl()
+    }
 
     LaunchedEffect(categoryId, categoryName) {
         viewModel.resumeOrStart(categoryId, categoryName)
@@ -83,6 +89,7 @@ fun DomanSessionRoute(
     DomanSessionScreen(
         categoryName = categoryName,
         uiState = uiState,
+        backendBaseUrl = backendBaseUrl,
         onBackClick = onBackClick,
         onTogglePause = viewModel::togglePause,
         onAdvance = viewModel::advance,
@@ -96,6 +103,7 @@ fun DomanSessionRoute(
 fun DomanSessionScreen(
     categoryName: String,
     uiState: DomanSessionUiState,
+    backendBaseUrl: String,
     onBackClick: () -> Unit,
     onTogglePause: () -> Unit,
     onAdvance: () -> Unit,
@@ -214,7 +222,12 @@ fun DomanSessionScreen(
                         )
                     }
 
-                    WordDisplayCard(card = currentCard, onPlayAudio = onPlayAudio, modifier = Modifier.fillMaxWidth().weight(1f))
+                    WordDisplayCard(
+                        card = currentCard,
+                        backendBaseUrl = backendBaseUrl,
+                        onPlayAudio = onPlayAudio,
+                        modifier = Modifier.fillMaxWidth().weight(1f)
+                    )
 
                     Column(
                         modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 20.dp),
@@ -254,7 +267,12 @@ fun DomanSessionScreen(
 }
 
 @Composable
-private fun WordDisplayCard(card: DomanSessionCard, onPlayAudio: () -> Unit, modifier: Modifier = Modifier) {
+private fun WordDisplayCard(
+    card: DomanSessionCard,
+    backendBaseUrl: String,
+    onPlayAudio: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Surface(
         modifier = modifier.padding(vertical = 24.dp),
         shape = RoundedCornerShape(36.dp),
@@ -274,6 +292,7 @@ private fun WordDisplayCard(card: DomanSessionCard, onPlayAudio: () -> Unit, mod
             if (!card.audioUrl.isNullOrBlank()) {
                 AudioPlayButton(
                     audioUrl = card.audioUrl,
+                    backendBaseUrl = backendBaseUrl,
                     onPlayAudio = onPlayAudio,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp)
                 )
@@ -283,7 +302,12 @@ private fun WordDisplayCard(card: DomanSessionCard, onPlayAudio: () -> Unit, mod
 }
 
 @Composable
-private fun AudioPlayButton(audioUrl: String, onPlayAudio: () -> Unit, modifier: Modifier = Modifier) {
+private fun AudioPlayButton(
+    audioUrl: String,
+    backendBaseUrl: String,
+    onPlayAudio: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val player = remember { MediaPlayer() }
 
@@ -291,7 +315,7 @@ private fun AudioPlayButton(audioUrl: String, onPlayAudio: () -> Unit, modifier:
         onDispose { player.release() }
     }
 
-    val resolvedUrl = if (audioUrl.startsWith("http")) audioUrl else "${BackendConfig.DEFAULT_REMOTE_BASE_URL}$audioUrl"
+    val resolvedUrl = resolvePlaybackUrl(audioUrl, backendBaseUrl)
 
     IconButton(
         onClick = {
@@ -306,6 +330,16 @@ private fun AudioPlayButton(audioUrl: String, onPlayAudio: () -> Unit, modifier:
         modifier = modifier.size(56.dp).background(Color(0xFFE53734).copy(alpha = 0.12f), CircleShape)
     ) {
         Icon(Icons.Rounded.VolumeUp, contentDescription = "Escuchar palabra", tint = Color(0xFFE53734))
+    }
+}
+
+private fun resolvePlaybackUrl(audioUrl: String, backendBaseUrl: String): String {
+    val value = audioUrl.trim()
+    val base = backendBaseUrl.removeSuffix("/")
+    return when {
+        value.startsWith("http://") || value.startsWith("https://") -> value
+        value.startsWith("/") -> "$base$value"
+        else -> "$base/$value"
     }
 }
 

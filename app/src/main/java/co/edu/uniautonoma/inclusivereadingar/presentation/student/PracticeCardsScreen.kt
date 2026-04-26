@@ -70,10 +70,15 @@ fun PracticeCardsRoute(
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
+    var backendBaseUrl by remember { mutableStateOf(BackendConfig.DEFAULT_REMOTE_BASE_URL) }
     val viewModel: PracticeCardsViewModel = viewModel(
         factory = PracticeCardsViewModelFactory(container.studentContentRepository)
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        backendBaseUrl = container.sessionStore.resolveBackendBaseUrl()
+    }
 
     LaunchedEffect(categoryId, categoryName) {
         viewModel.load(categoryId, categoryName)
@@ -83,6 +88,7 @@ fun PracticeCardsRoute(
         categoryName = categoryName,
         uiState = uiState,
         onBackClick = onBackClick,
+        backendBaseUrl = backendBaseUrl,
         onRetry = { viewModel.load(categoryId, categoryName) },
         onCompleteClick = viewModel::completeCurrentWord,
         onCardChanged = viewModel::moveToCard
@@ -94,6 +100,7 @@ fun PracticeCardsScreen(
     categoryName: String,
     uiState: PracticeCardsUiState,
     onBackClick: () -> Unit,
+    backendBaseUrl: String,
     onRetry: () -> Unit,
     onCompleteClick: () -> Unit,
     onCardChanged: (Int) -> Unit
@@ -216,7 +223,10 @@ fun PracticeCardsScreen(
                     state = pagerState,
                     modifier = Modifier.weight(1f)
                 ) { page ->
-                    WordCardPage(card = uiState.cards[page])
+                    WordCardPage(
+                        card = uiState.cards[page],
+                        backendBaseUrl = backendBaseUrl
+                    )
                 }
 
                 // Mark as read button
@@ -245,7 +255,7 @@ fun PracticeCardsScreen(
 }
 
 @Composable
-private fun WordCardPage(card: WordCard) {
+private fun WordCardPage(card: WordCard, backendBaseUrl: String) {
     val infiniteTransition = rememberInfiniteTransition(label = "wordPulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -276,6 +286,7 @@ private fun WordCardPage(card: WordCard) {
         if (!card.audioUrl.isNullOrBlank()) {
             AudioButton(
                 audioUrl = card.audioUrl,
+                backendBaseUrl = backendBaseUrl,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 28.dp, bottom = 12.dp)
@@ -285,7 +296,7 @@ private fun WordCardPage(card: WordCard) {
 }
 
 @Composable
-private fun AudioButton(audioUrl: String, modifier: Modifier = Modifier) {
+private fun AudioButton(audioUrl: String, backendBaseUrl: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
     val player = remember { MediaPlayer() }
@@ -296,11 +307,7 @@ private fun AudioButton(audioUrl: String, modifier: Modifier = Modifier) {
         }
     }
 
-    val resolvedUrl = if (audioUrl.startsWith("http")) {
-        audioUrl
-    } else {
-        "${BackendConfig.DEFAULT_REMOTE_BASE_URL}$audioUrl"
-    }
+    val resolvedUrl = resolvePlaybackUrl(audioUrl, backendBaseUrl)
 
     IconButton(
         onClick = {
@@ -323,5 +330,15 @@ private fun AudioButton(audioUrl: String, modifier: Modifier = Modifier) {
             tint = Color(0xFFE53734),
             modifier = Modifier.size(32.dp)
         )
+    }
+}
+
+private fun resolvePlaybackUrl(audioUrl: String, backendBaseUrl: String): String {
+    val value = audioUrl.trim()
+    val base = backendBaseUrl.removeSuffix("/")
+    return when {
+        value.startsWith("http://") || value.startsWith("https://") -> value
+        value.startsWith("/") -> "$base$value"
+        else -> "$base/$value"
     }
 }
