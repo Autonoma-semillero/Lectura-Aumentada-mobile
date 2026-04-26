@@ -20,30 +20,34 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import co.edu.uniautonoma.inclusivereadingar.appContainer
-import co.edu.uniautonoma.inclusivereadingar.domain.model.CategorySummary
-import co.edu.uniautonoma.inclusivereadingar.presentation.screens.ScanCardRoute
-import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateEditThemeRoute
-import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateWordCardRoute
-import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.ManageThemesRoute
-import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherLoginRoute
-import co.edu.uniautonoma.inclusivereadingar.presentation.student.PracticeCardsRoute
+import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
+import co.edu.uniautonoma.inclusivereadingar.presentation.student.DomanSessionRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.student.SessionSummaryScreen
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.StudentLoginRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.ThemesRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.SessionViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.SessionViewModelFactory
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateEditThemeRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateWordCardRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.ManageThemesRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherDomanPlansRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherLoginRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentProgressRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentsRoute
 
 @Composable
 fun AppNavHost() {
     val navController = rememberNavController()
     val context = LocalContext.current
+    val container = context.appContainer()
     val sessionViewModel: SessionViewModel = viewModel(
-        factory = SessionViewModelFactory(context.appContainer().authRepository)
+        factory = SessionViewModelFactory(container.authRepository)
     )
     val sessionState by sessionViewModel.uiState.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
-    LaunchedEffect(sessionState.session, sessionState.isLoading) {
+    LaunchedEffect(sessionState.session, sessionState.isLoading, currentRoute) {
         if (sessionState.isLoading) {
             return@LaunchedEffect
         }
@@ -59,7 +63,12 @@ fun AppNavHost() {
             if (sessionState.session?.user?.roles.orEmpty().any { it == "teacher" || it == "admin" }) {
                 navController.navigateToTeacherThemes()
             } else {
-                navController.navigateToThemes()
+                val ongoing = container.sessionStore.getOngoingSession()
+                if (ongoing != null) {
+                    navController.navigateToDomanSession(ongoing.categoryId, ongoing.categoryName)
+                } else {
+                    navController.navigateToThemes()
+                }
             }
         }
     }
@@ -88,7 +97,7 @@ fun AppNavHost() {
 
         composable(route = AppDestinations.THEMES_ROUTE) {
             ThemesRoute(
-                onThemeClick = { category -> navController.navigateToPractice(category) },
+                onThemeClick = { category -> navController.navigateToDomanSession(category.id, category.name) },
                 onLogoutClick = sessionViewModel::logout
             )
         }
@@ -98,6 +107,51 @@ fun AppNavHost() {
                 onBack = sessionViewModel::logout,
                 onCreateThemeClick = { navController.navigateToTeacherThemeForm() },
                 onEditThemeClick = { themeId -> navController.navigateToTeacherThemeForm(themeId) },
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onStudentsClick = navController::navigateToTeacherStudents
+            )
+        }
+
+        composable(route = AppDestinations.TEACHER_STUDENTS_ROUTE) {
+            TeacherStudentsRoute(
+                onBack = navController::navigateBackOrTeacherThemes,
+                onThemesClick = navController::navigateToTeacherThemes,
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onPlansClick = navController::navigateToTeacherPlan,
+                onProgressClick = navController::navigateToTeacherProgress
+            )
+        }
+
+        composable(
+            route = AppDestinations.TEACHER_DOMAN_PLAN_ROUTE,
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("studentName") { type = NavType.StringType }
+            )
+        ) { entry ->
+            TeacherDomanPlansRoute(
+                studentId = entry.arguments?.getString("studentId").orEmpty(),
+                studentName = entry.arguments?.getString("studentName").orEmpty(),
+                onBack = navController::navigateBackOrTeacherStudents,
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onThemesClick = navController::navigateToTeacherThemes,
+                onWordCardsClick = navController::navigateToTeacherWordCards
+            )
+        }
+
+        composable(
+            route = AppDestinations.TEACHER_PROGRESS_ROUTE,
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("studentName") { type = NavType.StringType }
+            )
+        ) { entry ->
+            TeacherStudentProgressRoute(
+                studentId = entry.arguments?.getString("studentId").orEmpty(),
+                studentName = entry.arguments?.getString("studentName").orEmpty(),
+                onBack = navController::navigateBackOrTeacherStudents,
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onThemesClick = navController::navigateToTeacherThemes,
                 onWordCardsClick = navController::navigateToTeacherWordCards
             )
         }
@@ -126,7 +180,7 @@ fun AppNavHost() {
         }
 
         composable(
-            route = AppDestinations.SCAN_CARD_ROUTE,
+            route = AppDestinations.DOMAN_SESSION_ROUTE,
             arguments = listOf(
                 navArgument("categoryId") { type = NavType.StringType },
                 navArgument("categoryName") { type = NavType.StringType }
@@ -134,28 +188,29 @@ fun AppNavHost() {
         ) { entry ->
             val categoryId = entry.arguments?.getString("categoryId").orEmpty()
             val categoryName = entry.arguments?.getString("categoryName").orEmpty()
-            ScanCardRoute(
+            DomanSessionRoute(
+                categoryId = categoryId,
                 categoryName = categoryName,
                 onBackClick = navController::navigateBackOrThemes,
-                onScanCardClick = {
-                    navController.navigate(AppDestinations.practiceRoute(categoryId, categoryName))
+                onSessionCompleted = { cardsCount ->
+                    navController.navigate(AppDestinations.sessionSummaryRoute(categoryName, cardsCount)) {
+                        popUpTo(AppDestinations.THEMES_ROUTE)
+                    }
                 }
             )
         }
 
         composable(
-            route = AppDestinations.PRACTICE_ROUTE,
+            route = AppDestinations.SESSION_SUMMARY_ROUTE,
             arguments = listOf(
-                navArgument("categoryId") { type = NavType.StringType },
-                navArgument("categoryName") { type = NavType.StringType }
+                navArgument("categoryName") { type = NavType.StringType },
+                navArgument("cardsCount") { type = NavType.IntType }
             )
         ) { entry ->
-            val categoryId = entry.arguments?.getString("categoryId").orEmpty()
-            val categoryName = entry.arguments?.getString("categoryName").orEmpty()
-            PracticeCardsRoute(
-                categoryId = categoryId,
-                categoryName = categoryName,
-                onBackClick = navController::navigateBackOrThemes
+            SessionSummaryScreen(
+                categoryName = entry.arguments?.getString("categoryName").orEmpty(),
+                cardsCount = entry.arguments?.getInt("cardsCount") ?: 0,
+                onFinish = navController::navigateToThemes
             )
         }
     }
@@ -175,14 +230,14 @@ private fun NavHostController.navigateToTeacherThemes() {
     }
 }
 
-private fun NavHostController.navigateToPractice(category: CategorySummary) {
-    navigate(AppDestinations.practiceRoute(category.id, category.name)) {
+private fun NavHostController.navigateToTeacherStudents() {
+    navigate(AppDestinations.TEACHER_STUDENTS_ROUTE) {
         launchSingleTop = true
     }
 }
 
-private fun NavHostController.navigateToScanCard(category: CategorySummary) {
-    navigate(AppDestinations.scanCardRoute(category.id, category.name)) {
+private fun NavHostController.navigateToDomanSession(categoryId: String, categoryName: String) {
+    navigate(AppDestinations.domanSessionRoute(categoryId, categoryName)) {
         launchSingleTop = true
     }
 }
@@ -199,6 +254,18 @@ private fun NavHostController.navigateToTeacherWordCards() {
     }
 }
 
+private fun NavHostController.navigateToTeacherPlan(student: AppUser) {
+    navigate(AppDestinations.teacherDomanPlanRoute(student.id, student.displayName ?: student.email)) {
+        launchSingleTop = true
+    }
+}
+
+private fun NavHostController.navigateToTeacherProgress(student: AppUser) {
+    navigate(AppDestinations.teacherProgressRoute(student.id, student.displayName ?: student.email)) {
+        launchSingleTop = true
+    }
+}
+
 private fun NavHostController.navigateBackOrThemes() {
     if (!popBackStack()) {
         navigateToThemes()
@@ -208,6 +275,12 @@ private fun NavHostController.navigateBackOrThemes() {
 private fun NavHostController.navigateBackOrTeacherThemes() {
     if (!popBackStack()) {
         navigateToTeacherThemes()
+    }
+}
+
+private fun NavHostController.navigateBackOrTeacherStudents() {
+    if (!popBackStack()) {
+        navigateToTeacherStudents()
     }
 }
 

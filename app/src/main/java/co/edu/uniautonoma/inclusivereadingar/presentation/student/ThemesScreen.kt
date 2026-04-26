@@ -120,7 +120,7 @@ fun ThemesScreen(
                             fontSize = 24.sp
                         )
                         Text(
-                            text = "Elige una aventura para hoy",
+                            text = "Elige una tematica para iniciar la sesion",
                             color = Color(0xFF64748B)
                         )
                     }
@@ -186,13 +186,13 @@ fun ThemesScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "No hay temáticas disponibles",
+                            text = "No hay tarjetas disponibles para hoy",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "Cierra sesión y vuelve a ingresar para sincronizar tu contenido.",
+                            text = "Cierra sesion y vuelve a ingresar para sincronizar tus tarjetas del dia.",
                             color = Color(0xFF64748B),
                             textAlign = TextAlign.Center
                         )
@@ -303,3 +303,4 @@ private fun accentForCategory(slug: String): Color {
         else -> Color(0xFFE53734)
     }
 }
+
