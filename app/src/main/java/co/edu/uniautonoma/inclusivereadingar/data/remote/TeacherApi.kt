@@ -1,7 +1,9 @@
 package co.edu.uniautonoma.inclusivereadingar.data.remote
 
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
+import co.edu.uniautonoma.inclusivereadingar.domain.model.AudioUploadInput
 import co.edu.uniautonoma.inclusivereadingar.domain.model.Category
+import co.edu.uniautonoma.inclusivereadingar.domain.model.UploadedAudio
 import co.edu.uniautonoma.inclusivereadingar.domain.model.WordCard
 import org.json.JSONArray
 import org.json.JSONObject
@@ -29,6 +31,8 @@ interface TeacherApi {
 
     suspend fun deleteCategory(id: String, accessToken: String?)
     suspend fun getUsers(accessToken: String?): List<AppUser>
+    suspend fun getWordCardsForCategory(categoryId: String, accessToken: String?): List<WordCard>
+    suspend fun getWordCardById(id: String, accessToken: String?): WordCard
     suspend fun createWordCard(
         studentId: String,
         word: String,
@@ -36,6 +40,19 @@ interface TeacherApi {
         audioUrl: String?,
         accessToken: String?
     ): WordCard
+
+    suspend fun updateWordCard(
+        id: String,
+        word: String,
+        audioUrl: String?,
+        accessToken: String?
+    ): WordCard
+
+    suspend fun archiveWordCard(id: String, accessToken: String?)
+    suspend fun uploadAudio(
+        input: AudioUploadInput,
+        accessToken: String?
+    ): UploadedAudio
 }
 
 class HttpTeacherApi(
@@ -116,6 +133,25 @@ class HttpTeacherApi(
         return parseUsers(response)
     }
 
+    override suspend fun getWordCardsForCategory(categoryId: String, accessToken: String?): List<WordCard> {
+        val response = httpClient.get(
+            path = "/categories/$categoryId/word-cards",
+            accessToken = accessToken
+        )
+        val json = JSONArray(response)
+        return buildList {
+            for (i in 0 until json.length()) {
+                add(parseWordCard(json.getJSONObject(i).toString()))
+            }
+        }
+    }
+
+    override suspend fun getWordCardById(id: String, accessToken: String?): WordCard {
+        return parseWordCard(
+            httpClient.get(path = "/word-cards/$id", accessToken = accessToken)
+        )
+    }
+
     override suspend fun createWordCard(
         studentId: String,
         word: String,
@@ -135,6 +171,57 @@ class HttpTeacherApi(
                 body = body,
                 accessToken = accessToken
             )
+        )
+    }
+
+    override suspend fun updateWordCard(
+        id: String,
+        word: String,
+        audioUrl: String?,
+        accessToken: String?
+    ): WordCard {
+        val body = JSONObject().put("word", word)
+        audioUrl?.let { body.put("audio_url", it) }
+        return parseWordCard(
+            httpClient.requestRaw(
+                method = "PATCH",
+                path = "/word-cards/$id",
+                body = body,
+                accessToken = accessToken
+            )
+        )
+    }
+
+    override suspend fun archiveWordCard(id: String, accessToken: String?) {
+        val body = JSONObject().put("status", "archived")
+        httpClient.requestRaw(
+            method = "PATCH",
+            path = "/word-cards/$id",
+            body = body,
+            accessToken = accessToken
+        )
+    }
+
+    override suspend fun uploadAudio(
+        input: AudioUploadInput,
+        accessToken: String?
+    ): UploadedAudio {
+        val response = httpClient.postMultipartFile(
+            path = "/uploads/audio",
+            fieldName = "file",
+            filePath = input.filePath,
+            mimeType = input.mimeType,
+            originalName = input.originalName,
+            accessToken = accessToken
+        )
+        val json = JSONObject(response)
+        return UploadedAudio(
+            audioUrl = json.getString("audio_url"),
+            mimeType = json.optString("mime_type").ifBlank { "application/octet-stream" },
+            sizeBytes = json.optLong("size_bytes", 0L),
+            originalName = json.optString("original_name").ifBlank {
+                input.originalName.orEmpty().ifBlank { "audio" }
+            }
         )
     }
 
