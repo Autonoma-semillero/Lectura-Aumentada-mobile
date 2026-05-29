@@ -55,7 +55,19 @@ class DomanRepository(
             java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
                 .format(java.util.Calendar.getInstance().time)
         }
-        return plansApi.getByDateRange(studentId, today, today, session.accessToken)
+        val plans = plansApi.getByDateRange(studentId, today, today, session.accessToken)
+        return plans.map { plan ->
+            val counts = runCatching {
+                sessionsApi.getByPlanId(plan.planId, session.accessToken)
+            }.getOrNull()
+            if (counts != null) {
+                plan.copy(
+                    sessionsCount = counts.total,
+                    completedSessionsCount = counts.completed,
+                    pendingSessionsCount = counts.pending
+                )
+            } else plan
+        }
     }
 
     suspend fun generatePlan(studentId: String, categoryId: String? = null, force: Boolean = true): DailyPlanSummary {

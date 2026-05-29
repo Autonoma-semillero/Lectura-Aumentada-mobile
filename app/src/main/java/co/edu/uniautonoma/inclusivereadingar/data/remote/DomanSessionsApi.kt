@@ -7,6 +7,13 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentProgressSummary
 import org.json.JSONArray
 import org.json.JSONObject
 
+data class PlanSessionCounts(
+    val total: Int,
+    val completed: Int,
+    val pending: Int,
+    val inProgress: Int
+)
+
 interface DomanSessionsApi {
     suspend fun getNext(studentId: String, categoryId: String?, accessToken: String?): DomanSession
     suspend fun getSession(sessionId: String, accessToken: String?): DomanSession
@@ -18,8 +25,8 @@ interface DomanSessionsApi {
         displayMs: Int?,
         accessToken: String?
     )
-
     suspend fun complete(sessionId: String, accessToken: String?): DomanSession
+    suspend fun getByPlanId(planId: String, accessToken: String?): PlanSessionCounts
     suspend fun getHistory(studentId: String, accessToken: String?): List<DomanSessionHistoryItem>
     suspend fun getProgressSummary(studentId: String, accessToken: String?): StudentProgressSummary
 }
@@ -76,6 +83,25 @@ class HttpDomanSessionsApi(
             body = body,
             accessToken = accessToken
         )
+    }
+
+    override suspend fun getByPlanId(planId: String, accessToken: String?): PlanSessionCounts {
+        val response = httpClient.get(
+            path = "/doman/sessions",
+            queryParams = mapOf("daily_plan_id" to planId),
+            accessToken = accessToken
+        )
+        val json = JSONArray(response)
+        var total = 0; var completed = 0; var pending = 0; var inProgress = 0
+        for (i in 0 until json.length()) {
+            total++
+            when (json.getJSONObject(i).optString("status")) {
+                "completed"   -> completed++
+                "planned"     -> pending++
+                "in_progress" -> inProgress++
+            }
+        }
+        return PlanSessionCounts(total, completed, pending, inProgress)
     }
 
     override suspend fun complete(sessionId: String, accessToken: String?): DomanSession {

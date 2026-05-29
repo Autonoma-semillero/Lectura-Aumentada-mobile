@@ -26,7 +26,6 @@ import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -125,11 +124,24 @@ fun ThemesScreen(
                         )
                     }
                 }
-                IconButton(onClick = onLogoutClick) {
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .clickable(onClick = onLogoutClick)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ExitToApp,
                         contentDescription = "Cerrar sesión",
-                        tint = Color(0xFFE53734)
+                        tint = Color(0xFFE53734),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = "Salir",
+                        color = Color(0xFFE53734),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
                     )
                 }
             }

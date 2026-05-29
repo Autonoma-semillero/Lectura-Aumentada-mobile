@@ -35,6 +35,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,7 +46,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -118,6 +123,18 @@ fun TeacherDomanPlansScreen(
     onWordCardsClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(uiState.errorMessage) {
+        val msg = uiState.errorMessage
+        if (!msg.isNullOrBlank()) {
+            scope.launch {
+                snackbarHostState.showSnackbar(msg)
+                onDismissError()
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -153,24 +170,6 @@ fun TeacherDomanPlansScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = primary)
-                }
-
-                !uiState.errorMessage.isNullOrBlank() -> Box(
-                    modifier = Modifier.weight(1f).padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.errorContainer
-                    ) {
-                        Text(
-                            text = uiState.errorMessage,
-                            modifier = Modifier.padding(24.dp),
-                            textAlign = TextAlign.Center,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                    LaunchedEffect(Unit) { onDismissError() }
                 }
 
                 else -> LazyColumn(
@@ -231,6 +230,21 @@ fun TeacherDomanPlansScreen(
                 onWordCardsClick = onWordCardsClick
             )
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 88.dp),
+            snackbar = { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = Color(0xFF1E293B),
+                    contentColor = Color.White
+                )
+            }
+        )
 
         if (!uiState.isLoading) {
             FloatingActionButton(

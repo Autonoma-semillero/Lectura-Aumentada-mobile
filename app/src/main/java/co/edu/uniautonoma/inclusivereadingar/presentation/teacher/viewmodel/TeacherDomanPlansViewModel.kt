@@ -41,7 +41,9 @@ class TeacherDomanPlansViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             runCatching {
                 val plansDeferred = async { domanRepository.getTodayPlans(studentId) }
-                val summaryDeferred = async { domanRepository.getStudentProgressSummary(studentId) }
+                val summaryDeferred = async {
+                    runCatching { domanRepository.getStudentProgressSummary(studentId) }.getOrNull()
+                }
                 val categoriesDeferred = async { contentRepository.getCategories() }
                 Triple(plansDeferred.await(), summaryDeferred.await(), categoriesDeferred.await())
             }.onSuccess { (plans, summary, categories) ->

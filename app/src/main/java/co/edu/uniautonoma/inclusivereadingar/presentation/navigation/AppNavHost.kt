@@ -36,6 +36,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.Sess
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CategoryCardsRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateEditThemeRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CreateWordCardRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.DocenteCompletedCardsRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.EditWordCardRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.ManageThemesRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherDomanPlansRoute
@@ -127,8 +128,16 @@ fun AppNavHost() {
                 onBack = navController::navigateBackOrTeacherThemes,
                 onThemesClick = navController::navigateToTeacherThemes,
                 onWordCardsClick = navController::navigateToTeacherWordCards,
-                onPlansClick = navController::navigateToTeacherPlan,
-                onProgressClick = navController::navigateToTeacherProgress
+                onPlansClick = { id, name ->
+                    navController.navigate(AppDestinations.teacherDomanPlanRoute(id, name)) {
+                        launchSingleTop = true
+                    }
+                },
+                onProgressClick = { id, name ->
+                    navController.navigate(AppDestinations.teacherProgressRoute(id, name)) {
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 
@@ -160,6 +169,32 @@ fun AppNavHost() {
                 studentId = entry.arguments?.getString("studentId").orEmpty(),
                 studentName = entry.arguments?.getString("studentName").orEmpty(),
                 onBack = navController::navigateBackOrTeacherStudents,
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onThemesClick = navController::navigateToTeacherThemes,
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onCompletedCardsClick = { studentId, categoryId, categoryName, phase2Ready ->
+                    navController.navigate(
+                        AppDestinations.teacherCompletedCardsRoute(studentId, categoryId, categoryName, phase2Ready)
+                    ) { launchSingleTop = true }
+                }
+            )
+        }
+
+        composable(
+            route = AppDestinations.TEACHER_COMPLETED_CARDS_ROUTE,
+            arguments = listOf(
+                navArgument("studentId") { type = NavType.StringType },
+                navArgument("categoryId") { type = NavType.StringType },
+                navArgument("categoryName") { type = NavType.StringType },
+                navArgument("phase2Ready") { type = NavType.BoolType }
+            )
+        ) { entry ->
+            DocenteCompletedCardsRoute(
+                studentId = entry.arguments?.getString("studentId").orEmpty(),
+                categoryId = entry.arguments?.getString("categoryId").orEmpty(),
+                categoryName = entry.arguments?.getString("categoryName").orEmpty(),
+                phase2Ready = entry.arguments?.getBoolean("phase2Ready") ?: false,
+                onBack = { navController.navigateBackOrTeacherStudents() },
                 onStudentsClick = navController::navigateToTeacherStudents,
                 onThemesClick = navController::navigateToTeacherThemes,
                 onWordCardsClick = navController::navigateToTeacherWordCards

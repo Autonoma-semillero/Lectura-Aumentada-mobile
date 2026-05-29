@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&amp;family=Lexend:wght@400;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@100..900&amp;family=lexend:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .bounce-on-hover:hover {
+            animation: bounce 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-4px); }
+        }
+        .card-shadow {
+            box-shadow: 0px 8px 16px rgba(183, 19, 26, 0.1);
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "surface-variant": "#fadcd8",
+                "surface-container-high": "#ffe2de",
+                "secondary": "#0060ac",
+                "on-secondary": "#ffffff",
+                "secondary-fixed-dim": "#a4c9ff",
+                "on-secondary-fixed-variant": "#004883",
+                "surface-container": "#ffe9e6",
+                "surface-bright": "#fff8f7",
+                "inverse-primary": "#ffb4ac",
+                "on-primary-container": "#fffbff",
+                "inverse-surface": "#3e2c2a",
+                "primary-fixed-dim": "#ffb4ac",
+                "on-primary": "#ffffff",
+                "error": "#ba1a1a",
+                "primary": "#b7131a",
+                "outline-variant": "#e4beb9",
+                "on-background": "#271716",
+                "primary-container": "#db322f",
+                "on-tertiary-container": "#4f3e00",
+                "tertiary-fixed-dim": "#ebc23e",
+                "surface-container-lowest": "#ffffff",
+                "surface-tint": "#bb171c",
+                "on-tertiary-fixed-variant": "#574500",
+                "inverse-on-surface": "#ffedea",
+                "secondary-container": "#68abff",
+                "tertiary-container": "#cda722",
+                "background": "#fff8f7",
+                "surface": "#fff8f7",
+                "tertiary-fixed": "#ffe087",
+                "surface-container-low": "#fff0ee",
+                "on-surface-variant": "#5b403d",
+                "error-container": "#ffdad6",
+                "secondary-fixed": "#d4e3ff",
+                "tertiary": "#735c00",
+                "on-secondary-fixed": "#001c39",
+                "outline": "#906f6c",
+                "on-tertiary": "#ffffff",
+                "surface-dim": "#f1d3d0",
+                "on-primary-fixed-variant": "#93000d",
+                "primary-fixed": "#ffdad6",
+                "on-tertiary-fixed": "#241a00",
+                "on-primary-fixed": "#410002",
+                "on-error": "#ffffff",
+                "on-error-container": "#93000a",
+                "on-secondary-container": "#003e73",
+                "on-surface": "#271716",
+                "surface-container-highest": "#fadcd8"
+            },
+            "borderRadius": {
+                "DEFAULT": "1rem",
+                "lg": "2rem",
+                "xl": "3rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "container-padding": "24px",
+                "xs": "4px",
+                "unit": "8px",
+                "lg": "24px",
+                "xl": "32px",
+                "sm": "8px",
+                "md": "16px",
+                "gutter": "16px"
+            },
+            "fontFamily": {
+                "title-lg": ["Poppins"],
+                "emphasis-word": ["lexend"],
+                "body-lg": ["lexend"],
+                "title-xl": ["Poppins"],
+                "label-bold": ["lexend"],
+                "body-md": ["lexend"]
+            },
+            "fontSize": {
+                "title-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                "emphasis-word": ["48px", {"lineHeight": "56px", "letterSpacing": "0.02em", "fontWeight": "700"}],
+                "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "400"}],
+                "title-xl": ["40px", {"lineHeight": "48px", "fontWeight": "700"}],
+                "label-bold": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body-md min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-surface dark:bg-surface-dim shadow-[0_8px_16px_-4px_rgba(183,19,26,0.25)] flex justify-between items-center px-lg h-20">
+<div class="flex items-center gap-md">
+<button aria-label="Atrás" class="flex items-center justify-center w-12 h-12 rounded-full hover:bg-surface-variant transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<h1 class="font-title-lg text-title-lg text-primary">Lucas García</h1>
+</div>
+<div class="flex items-center">
+<div class="w-12 h-12 rounded-full bg-surface-variant overflow-hidden border-2 border-primary">
+<img alt="Lucas García" class="w-full h-full object-cover" data-alt="A cheerful 3D stylized cartoon avatar of a young boy with light brown hair and a bright friendly expression, set against a soft pastel red background. The visual style is modern, high-quality digital art with smooth textures and playful proportions, consistent with a high-end educational app for children. Lighting is soft and even, highlighting the vibrant colors and safe, welcoming aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoYRvzFdudvwpT2gjJ2LZ70dHAU8o_ylce7tB6pt1xqrOmruvKPwwRrTKNjn5x8SDTZQisdR3bX6iMxMRdZ5HwjGmkNb9U9sd4AV_dnit1HIXG1SjZ3hzCicF9zMiBaRhnjm8LGAyRB4nSJFpDeRqGAj30NkCwbLaq_zFBnepgBO4JumaeG9OOtWsNybPDMmDcaD7gONfK7QbNuj5O8DlhOeCa5KMYFi4c_30WPi9DvohCJkJOVyaHXMTNuhlmU0YJuiEodnrfC8o"/>
+</div>
+</div>
+</header>
+<main class="max-w-4xl mx-auto px-container-padding mt-lg">
+<!-- Header Section -->
+<section class="flex flex-col items-center mb-xl">
+<div class="relative group">
+<div class="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-primary p-1 mb-md transition-transform duration-300 group-hover:scale-105 shadow-lg">
+<img alt="Lucas Profile Big" class="w-full h-full rounded-full bg-surface-container" data-alt="Large detailed 3D avatar of a smiling young boy with expressive eyes and a playful demeanor. The character is rendered in a soft, tactile digital toy style with high contrast and vibrant colors. The background is a clean, bright white space with subtle glowing shadows in light red, evoking a sense of wonder, safety, and accomplishment suitable for early childhood education." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGH2wBep6Eoa9pJzNzoZtn3gCAqW-bSSKehCys-gFHmUiBK-fTSu0xGqHF7dvywr4GjQmy4kkhLeyZaiogFSf61p-z942IBrLuL56BQ7XU70GDdm_Mp_l-vylAvFF1Qs12V09QkF49BN80PSI5teFN0FO-gWBbV6PrFSUPVLtYxSPotNtrUyBTjLXYvaQusDAIQ69f8AMqZatNCAW-UtVxpEGVuVpk_n_XByVWpM-6cgCnrRgmmmZg4fwUDv4CeULRO-7H2phNZas"/>
+</div>
+<div class="absolute bottom-4 right-0 bg-secondary text-on-secondary px-md py-xs rounded-full shadow-md font-label-bold text-label-bold">
+                    Estudiante
+                </div>
+</div>
+<h2 class="font-title-xl text-title-xl text-on-surface mt-sm text-center">Lucas García</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant text-center opacity-80">Nivel 4 • Explorador de Palabras</p>
+</section>
+<!-- Progress Section -->
+<section>
+<div class="flex items-center justify-between mb-lg">
+<h3 class="font-title-lg text-title-lg text-primary">Progreso por temática</h3>
+<span class="material-symbols-outlined text-primary text-3xl">analytics</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-lg">
+<!-- Card Cocina -->
+<div class="bg-white rounded-lg p-lg card-shadow border-b-[4px] border-[#00000010] relative overflow-hidden bounce-on-hover transition-all">
+<!-- Banner Success -->
+<div class="absolute top-0 right-0 bg-[#22c55e] text-white px-md py-xs rounded-bl-lg font-label-bold text-sm flex items-center gap-xs z-10 shadow-sm">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                        ✓ Lista para Fase 2 ★
+                    </div>
+<div class="flex items-start gap-md mb-md">
+<div class="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-orange-500 text-3xl">restaurant</span>
+</div>
+<div class="flex-1 pt-xs">
+<h4 class="font-title-lg text-2xl text-on-surface leading-tight">Cocina</h4>
+<p class="font-label-bold text-label-bold text-on-surface-variant">12/12 palabras</p>
+</div>
+</div>
+<!-- Stacked Progress Bar -->
+<div class="space-y-unit mb-lg">
+<div class="h-4 w-full bg-surface-variant rounded-full overflow-hidden flex">
+<div class="h-full bg-[#22c55e]" style="width: 100%"></div>
+</div>
+<div class="flex justify-between text-xs font-label-bold text-on-surface-variant">
+<span>Dominado</span>
+<span>100%</span>
+</div>
+</div>
+<button class="w-full h-14 bg-secondary text-on-secondary rounded-lg font-label-bold text-label-bold flex items-center justify-center gap-sm active:scale-95 transition-transform border-b-4 border-on-secondary-fixed-variant">
+                        Ver dominadas
+                        <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<!-- Card Cuerpo -->
+<div class="bg-white rounded-lg p-lg card-shadow border-b-[4px] border-[#00000010] relative overflow-hidden bounce-on-hover transition-all">
+<div class="flex items-start gap-md mb-md">
+<div class="w-14 h-14 rounded-full bg-pink-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-pink-500 text-3xl">accessibility_new</span>
+</div>
+<div class="flex-1 pt-xs">
+<h4 class="font-title-lg text-2xl text-on-surface leading-tight">Cuerpo</h4>
+<p class="font-label-bold text-label-bold text-on-surface-variant">8/15 palabras</p>
+</div>
+</div>
+<!-- Stacked Progress Bar -->
+<div class="space-y-unit mb-lg">
+<div class="h-4 w-full bg-surface-variant rounded-full overflow-hidden flex">
+<div class="h-full bg-[#22c55e]" style="width: 40%"></div>
+<div class="h-full bg-[#FFD54F]" style="width: 20%"></div>
+</div>
+<div class="flex justify-between text-xs font-label-bold text-on-surface-variant">
+<span>En progreso</span>
+<span>60% total</span>
+</div>
+</div>
+<button class="w-full h-14 bg-secondary text-on-secondary rounded-lg font-label-bold text-label-bold flex items-center justify-center gap-sm active:scale-95 transition-transform border-b-4 border-on-secondary-fixed-variant">
+                        Ver progreso
+                        <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<!-- Card Escuela -->
+<div class="bg-white rounded-lg p-lg card-shadow border-b-[4px] border-[#00000010] relative overflow-hidden bounce-on-hover transition-all">
+<div class="flex items-start gap-md mb-md">
+<div class="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-blue-500 text-3xl">school</span>
+</div>
+<div class="flex-1 pt-xs">
+<h4 class="font-title-lg text-2xl text-on-surface leading-tight">Escuela</h4>
+<p class="font-label-bold text-label-bold text-on-surface-variant">3/20 palabras</p>
+</div>
+</div>
+<!-- Stacked Progress Bar -->
+<div class="space-y-unit mb-lg">
+<div class="h-4 w-full bg-surface-variant rounded-full overflow-hidden flex">
+<div class="h-full bg-[#22c55e]" style="width: 10%"></div>
+<div class="h-full bg-[#FFD54F]" style="width: 5%"></div>
+</div>
+<div class="flex justify-between text-xs font-label-bold text-on-surface-variant">
+<span>Iniciado</span>
+<span>15%</span>
+</div>
+</div>
+<button class="w-full h-14 bg-secondary text-on-secondary rounded-lg font-label-bold text-label-bold flex items-center justify-center gap-sm active:scale-95 transition-transform border-b-4 border-on-secondary-fixed-variant">
+                        Continuar
+                        <span class="material-symbols-outlined">play_circle</span>
+</button>
+</div>
+<!-- Card Animales -->
+<div class="bg-white rounded-lg p-lg card-shadow border-b-[4px] border-[#00000010] relative overflow-hidden bounce-on-hover transition-all">
+<div class="flex items-start gap-md mb-md">
+<div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-green-500 text-3xl">pets</span>
+</div>
+<div class="flex-1 pt-xs">
+<h4 class="font-title-lg text-2xl text-on-surface leading-tight">Animales</h4>
+<p class="font-label-bold text-label-bold text-on-surface-variant">0/10 palabras</p>
+</div>
+</div>
+<!-- Stacked Progress Bar -->
+<div class="space-y-unit mb-lg">
+<div class="h-4 w-full bg-surface-variant rounded-full overflow-hidden"></div>
+<div class="flex justify-between text-xs font-label-bold text-on-surface-variant">
+<span>No iniciado</span>
+<span>0%</span>
+</div>
+</div>
+<button class="w-full h-14 bg-surface-variant text-on-surface-variant rounded-lg font-label-bold text-label-bold flex items-center justify-center gap-sm active:scale-95 transition-transform">
+                        Bloqueado
+                        <span class="material-symbols-outlined">lock</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center h-24 px-container-padding pb-safe bg-surface-container border-t-0 shadow-[0_-8px_16px_rgba(0,0,0,0.05)] rounded-t-lg">
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs gap-xs hover:bg-surface-variant rounded-lg active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-bold text-label-bold">Inicio</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-lg px-md py-xs gap-xs active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-label-bold text-label-bold">Estudiantes</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs gap-xs hover:bg-surface-variant rounded-lg active:scale-90 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-bold text-label-bold">Perfil</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', function() {
+                this.classList.add('scale-95');
+                setTimeout(() => this.classList.remove('scale-95'), 150);
+            });
+        });
+
+        // Simple interactive background pulse effect
+        const createPulse = (e) => {
+            const pulse = document.createElement('div');
+            pulse.className = 'fixed rounded-full pointer-events-none bg-primary opacity-5 animate-ping z-0';
+            pulse.style.width = '200px';
+            pulse.style.height = '200px';
+            pulse.style.left = `${e.clientX - 100}px`;
+            pulse.style.top = `${e.clientY - 100}px`;
+            document.body.appendChild(pulse);
+            setTimeout(() => pulse.remove(), 1000);
+        };
+
+        // Limited background interactions
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName !== 'BUTTON' && e.target.tagName !== 'A') {
+                createPulse(e);
+            }
+        });
+    </script>
+</body></html>

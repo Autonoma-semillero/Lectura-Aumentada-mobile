@@ -15,6 +15,7 @@ object AppDestinations {
     const val TEACHER_CATEGORY_CARDS_ROUTE = "teacher_category_cards/{categoryId}/{categoryName}"
     const val TEACHER_CREATE_WORD_CARD_ROUTE = "teacher_create_word_card?categoryId={categoryId}"
     const val TEACHER_EDIT_WORD_CARD_ROUTE = "teacher_edit_word_card/{cardId}"
+    const val TEACHER_COMPLETED_CARDS_ROUTE = "teacher_completed_cards/{studentId}/{categoryId}/{categoryName}/{phase2Ready}"
     const val START_ROUTE = LOGIN_ROUTE
     const val PRACTICE_ROUTE = "practice/{categoryId}/{categoryName}"
 
@@ -40,6 +41,13 @@ object AppDestinations {
     }
 
     fun teacherEditWordCardRoute(cardId: String): String = "teacher_edit_word_card/$cardId"
+
+    fun teacherCompletedCardsRoute(
+        studentId: String,
+        categoryId: String,
+        categoryName: String,
+        phase2Ready: Boolean
+    ): String = "teacher_completed_cards/$studentId/$categoryId/${android.net.Uri.encode(categoryName)}/$phase2Ready"
 
     fun teacherThemeFormRoute(themeId: String? = null): String {
         return if (themeId != null) {

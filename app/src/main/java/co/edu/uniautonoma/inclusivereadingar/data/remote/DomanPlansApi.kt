@@ -99,7 +99,8 @@ class HttpDomanPlansApi(
 
     private fun parsePlanSummary(rawJson: String): DailyPlanSummary {
         val json = JSONObject(rawJson)
-        val plan = json.getJSONObject("plan")
+        // Handle both { "plan": {...}, "cards": [...] } and flat plan object
+        val plan = if (json.has("plan")) json.getJSONObject("plan") else json
         val cardsArray = json.optJSONArray("cards")
         val words = buildList {
             if (cardsArray != null) {
