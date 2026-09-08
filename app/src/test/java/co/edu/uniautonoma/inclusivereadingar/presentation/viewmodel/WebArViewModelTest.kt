@@ -1,9 +1,8 @@
 package co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel
 
 import co.edu.uniautonoma.inclusivereadingar.MainDispatcherRule
-import co.edu.uniautonoma.inclusivereadingar.data.repository.MockLearningRepository
-import co.edu.uniautonoma.inclusivereadingar.domain.usecase.GetDailyWordsUseCase
-import co.edu.uniautonoma.inclusivereadingar.domain.usecase.RegisterProgressUseCase
+import co.edu.uniautonoma.inclusivereadingar.domain.model.ArAsset
+import co.edu.uniautonoma.inclusivereadingar.domain.repository.ArAssetRepository
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -13,62 +12,109 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WebArViewModelTest {
-
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
+    private val gatoAsset = ArAsset(
+        id = "asset-1",
+        learningUnitId = "unit-1",
+        markerId = "demo-animales-gato",
+        word = "gato",
+        model3dUrl = "https://cdn.example.test/gato.glb",
+        audioUrl = "https://cdn.example.test/gato.mp3",
+        accessibilityLabel = "Modelo tridimensional de un gato"
+    )
+
     @Test
-    fun init_loadsWordsSuccessfully() = runTest {
-        val repository = MockLearningRepository()
-        val viewModel = WebArViewModel(GetDailyWordsUseCase(repository), RegisterProgressUseCase(repository))
+    fun markerFound_fetchesAndPublishesTheAssociatedAsset() = runTest {
+        val repository = FakeArAssetRepository(results = mapOf(gatoAsset.markerId to gatoAsset))
+        val viewModel = WebArViewModel(repository)
 
+        viewModel.onMarkerFound(gatoAsset.markerId)
         advanceUntilIdle()
-        val state = viewModel.uiState.value
 
-        assertThat(state.isLoading).isFalse()
-        assertThat(state.units).hasSize(3)
-        assertThat(state.currentWordIndex).isEqualTo(0)
-        assertThat(state.generalError).isNull()
+        assertThat(repository.requests).containsExactly(gatoAsset.markerId)
+        assertThat(viewModel.uiState.value.asset).isEqualTo(gatoAsset)
+        assertThat(viewModel.uiState.value.outboundCommand?.command)
+            .isEqualTo(WebArCommand.AssetReady(gatoAsset))
     }
 
     @Test
-    fun onWebError_updatesErrorState() = runTest {
-        val repository = MockLearningRepository()
-        val viewModel = WebArViewModel(GetDailyWordsUseCase(repository), RegisterProgressUseCase(repository))
+    fun repeatedMarkerEvents_makeOnlyOneRequestWhileActive() = runTest {
+        val repository = FakeArAssetRepository(results = mapOf(gatoAsset.markerId to gatoAsset))
+        val viewModel = WebArViewModel(repository)
 
-        viewModel.onWebError("Sin conectividad")
+        repeat(5) { viewModel.onMarkerFound(gatoAsset.markerId) }
+        advanceUntilIdle()
+        repeat(5) { viewModel.onMarkerFound(gatoAsset.markerId) }
 
-        assertThat(viewModel.uiState.value.webError).isEqualTo("Sin conectividad")
+        assertThat(repository.requests).containsExactly(gatoAsset.markerId)
     }
 
     @Test
-    fun nextAndPreviousWord_updatesIndexWithinBounds() = runTest {
-        val repository = MockLearningRepository()
-        val viewModel = WebArViewModel(GetDailyWordsUseCase(repository), RegisterProgressUseCase(repository))
+    fun refoundMarker_usesTheSessionCacheAfterItWasLost() = runTest {
+        val repository = FakeArAssetRepository(results = mapOf(gatoAsset.markerId to gatoAsset))
+        val viewModel = WebArViewModel(repository)
 
+        viewModel.onMarkerFound(gatoAsset.markerId)
         advanceUntilIdle()
-        viewModel.nextWord()
-        viewModel.nextWord()
-        viewModel.nextWord()
+        viewModel.onMarkerLost(gatoAsset.markerId)
+        viewModel.onMarkerFound(gatoAsset.markerId)
+        advanceUntilIdle()
 
-        assertThat(viewModel.uiState.value.currentWordIndex).isEqualTo(2)
-
-        viewModel.previousWord()
-        assertThat(viewModel.uiState.value.currentWordIndex).isEqualTo(1)
+        assertThat(repository.requests).containsExactly(gatoAsset.markerId)
+        assertThat(viewModel.uiState.value.asset).isEqualTo(gatoAsset)
     }
 
     @Test
-    fun registerSimulatedRead_tracksPracticeAndAdvancesWord() = runTest {
-        val repository = MockLearningRepository()
-        val viewModel = WebArViewModel(GetDailyWordsUseCase(repository), RegisterProgressUseCase(repository))
+    fun markerWithoutAssociation_isAControlledState() = runTest {
+        val repository = FakeArAssetRepository(results = emptyMap())
+        val viewModel = WebArViewModel(repository)
 
-        advanceUntilIdle()
-        viewModel.registerSimulatedRead()
+        viewModel.onMarkerFound("unknown-marker")
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertThat(state.lastRegisteredWord).isEqualTo("CASA")
-        assertThat(state.completedPractices).isEqualTo(1)
-        assertThat(state.currentWordIndex).isEqualTo(1)
+        assertThat(viewModel.uiState.value.markerWithoutAssociation).isTrue()
+        assertThat(viewModel.uiState.value.errorMessage).isNull()
+        assertThat(viewModel.uiState.value.outboundCommand?.command)
+            .isEqualTo(WebArCommand.MarkerNotFound("unknown-marker"))
+    }
+
+    @Test
+    fun markerLost_clearsTheCurrentAsset() = runTest {
+        val repository = FakeArAssetRepository(results = mapOf(gatoAsset.markerId to gatoAsset))
+        val viewModel = WebArViewModel(repository)
+        viewModel.onMarkerFound(gatoAsset.markerId)
+        advanceUntilIdle()
+
+        viewModel.onMarkerLost(gatoAsset.markerId)
+
+        assertThat(viewModel.uiState.value.activeMarkerId).isNull()
+        assertThat(viewModel.uiState.value.asset).isNull()
+        assertThat(viewModel.uiState.value.outboundCommand?.command)
+            .isEqualTo(WebArCommand.ClearMarker(gatoAsset.markerId))
+    }
+
+    @Test
+    fun invalidMarker_isRejectedBeforeCallingTheRepository() = runTest {
+        val repository = FakeArAssetRepository(results = emptyMap())
+        val viewModel = WebArViewModel(repository)
+
+        viewModel.onMarkerFound("<script>")
+        advanceUntilIdle()
+
+        assertThat(repository.requests).isEmpty()
+        assertThat(viewModel.uiState.value.errorMessage).isNotNull()
+    }
+
+    private class FakeArAssetRepository(
+        private val results: Map<String, ArAsset?>
+    ) : ArAssetRepository {
+        val requests = mutableListOf<String>()
+
+        override suspend fun findByMarker(markerId: String): ArAsset? {
+            requests += markerId
+            return results[markerId]
+        }
     }
 }

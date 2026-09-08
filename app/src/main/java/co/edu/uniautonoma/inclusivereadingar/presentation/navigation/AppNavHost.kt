@@ -28,6 +28,7 @@ import androidx.navigation.navArgument
 import co.edu.uniautonoma.inclusivereadingar.appContainer
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.DomanSessionRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.screens.WebArRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.SessionSummaryScreen
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.StudentLoginRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.ThemesRoute
@@ -109,8 +110,15 @@ fun AppNavHost() {
         composable(route = AppDestinations.THEMES_ROUTE) {
             ThemesRoute(
                 onThemeClick = { category -> navController.navigateToDomanSession(category.id, category.name) },
+                onOpenAr = {
+                    navController.navigate(AppDestinations.PRACTICE_ROUTE) { launchSingleTop = true }
+                },
                 onLogoutClick = { showLogoutDialog = true }
             )
+        }
+
+        composable(route = AppDestinations.PRACTICE_ROUTE) {
+            WebArRoute(onBackClick = navController::popBackStack)
         }
 
         composable(route = AppDestinations.TEACHER_THEMES_ROUTE) {
@@ -428,5 +436,4 @@ private fun NavHostController.navigateBackOrTeacherStudents() {
 private fun String?.isLoginRoute(): Boolean {
     return this == AppDestinations.LOGIN_ROUTE || this == AppDestinations.TEACHER_LOGIN_ROUTE
 }
-
 

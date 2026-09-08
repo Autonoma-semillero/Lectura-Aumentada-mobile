@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' blob: data: https:; script-src 'self'; style-src 'self'; img-src 'self' blob: data: https:; media-src 'self' blob: data: https:; connect-src 'self' blob: data: https:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'none';"
+    />
+    <title>Lectura Aumentada AR</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./vendor/aframe.min.js"></script>
+    <script src="./vendor/aframe-ar.js"></script>
+  </head>
+  <body>
+    <main id="experience" aria-label="Experiencia de realidad aumentada">
+      <div id="ar-root" aria-hidden="true"></div>
+
+      <section id="activation" class="center-card" aria-labelledby="activation-title">
+        <h1 id="activation-title">Realidad aumentada</h1>
+        <p id="activation-copy">
+          La cámara se usará solamente para reconocer la tarjeta. Ninguna imagen se envía al servidor.
+        </p>
+        <button id="activate-camera" class="primary-action" type="button">Activar cámara</button>
+        <p id="compatibility" class="detail" aria-live="polite"></p>
+      </section>
+
+      <section id="loading" class="center-card hidden" aria-live="assertive">
+        <div class="spinner" aria-hidden="true"></div>
+        <p>Preparando la cámara…</p>
+      </section>
+
+      <section id="error-card" class="center-card hidden" role="alert">
+        <h2>No pudimos iniciar la experiencia</h2>
+        <p id="error-message"></p>
+        <button id="retry-camera" class="primary-action" type="button">Reintentar</button>
+      </section>
+
+      <aside id="debug-panel" class="debug-panel" aria-live="polite">
+        <strong id="main-status">Cámara inactiva</strong>
+        <dl>
+          <div><dt>Cámara</dt><dd id="camera-state">inactiva</dd></div>
+          <div><dt>WebXR</dt><dd id="webxr-state">verificando</dd></div>
+          <div><dt>Marcador</dt><dd id="marker-state">ninguno</dd></div>
+          <div><dt>Modelo</dt><dd id="model-state">sin contenido</dd></div>
+          <div><dt>Audio</dt><dd id="audio-state">sin contenido</dd></div>
+        </dl>
+      </aside>
+
+      <button id="repeat-audio" class="audio-action hidden" type="button" aria-label="Repetir audio">
+        Repetir audio
+      </button>
+    </main>
+
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

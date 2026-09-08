@@ -22,3 +22,4 @@ keystore.properties
 .DS_Store
 **/.DS_Store
 .claude
+webar/node_modules/

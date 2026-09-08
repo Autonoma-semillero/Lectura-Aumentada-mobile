@@ -1,0 +1,22 @@
+{
+  "name": "lectura-aumentada-webar",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "npm run test && npm run build"
+  },
+  "dependencies": {
+    "@ar-js-org/ar.js": "3.4.8",
+    "aframe": "1.6.0"
+  },
+  "overrides": {
+    "axios": "1.20.0",
+    "got": "11.8.6"
+  }
+}

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ExitToApp
 import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.Forest
 import androidx.compose.material.icons.rounded.FamilyRestroom
 import androidx.compose.material.icons.rounded.Pets
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,6 +53,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.Them
 @Composable
 fun ThemesRoute(
     onThemeClick: (CategorySummary) -> Unit,
+    onOpenAr: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -63,6 +66,7 @@ fun ThemesRoute(
     ThemesScreen(
         uiState = uiState,
         onThemeClick = onThemeClick,
+        onOpenAr = onOpenAr,
         onRetry = viewModel::loadThemes,
         onLogoutClick = onLogoutClick
     )
@@ -72,6 +76,7 @@ fun ThemesRoute(
 fun ThemesScreen(
     uiState: ThemesUiState,
     onThemeClick: (CategorySummary) -> Unit,
+    onOpenAr: () -> Unit,
     onRetry: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
@@ -125,24 +130,36 @@ fun ThemesScreen(
                     }
                 }
                 androidx.compose.foundation.layout.Row(
-                    modifier = Modifier
-                        .clickable(onClick = onLogoutClick)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ExitToApp,
-                        contentDescription = "Cerrar sesión",
-                        tint = Color(0xFFE53734),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = "Salir",
-                        color = Color(0xFFE53734),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
+                    IconButton(onClick = onOpenAr) {
+                        Icon(
+                            imageVector = Icons.Rounded.CenterFocusStrong,
+                            contentDescription = "Abrir realidad aumentada",
+                            tint = Color(0xFFE53734)
+                        )
+                    }
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier
+                            .clickable(onClick = onLogoutClick)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ExitToApp,
+                            contentDescription = "Cerrar sesión",
+                            tint = Color(0xFFE53734),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Salir",
+                            color = Color(0xFFE53734),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }
@@ -315,4 +332,3 @@ private fun accentForCategory(slug: String): Color {
         else -> Color(0xFFE53734)
     }
 }
-

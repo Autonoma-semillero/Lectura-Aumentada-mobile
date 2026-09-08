@@ -1,12 +1,20 @@
 package co.edu.uniautonoma.inclusivereadingar.presentation.screens
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.webkit.JavascriptInterface
+import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,415 +22,386 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import co.edu.uniautonoma.inclusivereadingar.R
+import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import co.edu.uniautonoma.inclusivereadingar.BuildConfig
+import co.edu.uniautonoma.inclusivereadingar.appContainer
 import co.edu.uniautonoma.inclusivereadingar.config.WebArConfig
-import co.edu.uniautonoma.inclusivereadingar.data.repository.MockLearningRepository
-import co.edu.uniautonoma.inclusivereadingar.domain.repository.LearningRepository
+import co.edu.uniautonoma.inclusivereadingar.domain.model.ArAsset
+import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArCommand
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArUiState
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArViewModelFactory
+import org.json.JSONObject
 
 @Composable
-fun WebArRoute(
-    repository: LearningRepository = remember { MockLearningRepository() },
-    viewModel: WebArViewModel = viewModel(factory = WebArViewModelFactory(repository))
-) {
+fun WebArRoute(onBackClick: () -> Unit) {
+    val context = LocalContext.current
+    val container = context.appContainer()
+    val viewModel: WebArViewModel = viewModel(
+        factory = WebArViewModelFactory(container.arAssetRepository)
+    )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     WebArScreen(
         uiState = uiState,
-        onRetry = {
-            viewModel.clearWebError()
-            viewModel.refreshContent()
-        },
+        onBackClick = onBackClick,
+        onMarkerFound = viewModel::onMarkerFound,
+        onMarkerLost = viewModel::onMarkerLost,
         onWebError = viewModel::onWebError,
-        onDismissWebError = viewModel::clearWebError,
-        onSimulateRead = viewModel::registerSimulatedRead,
-        onNextWord = viewModel::nextWord,
-        onPreviousWord = viewModel::previousWord
+        onCameraPermissionDenied = viewModel::onCameraPermissionDenied,
+        onRetry = viewModel::retryActiveMarker,
+        onCommandDelivered = viewModel::onCommandDelivered
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("SetJavaScriptEnabled") // Required by the bundled A-Frame/AR.js runtime on a locked origin.
 @Composable
 fun WebArScreen(
     uiState: WebArUiState,
-    onRetry: () -> Unit,
+    onBackClick: () -> Unit,
+    onMarkerFound: (String) -> Unit,
+    onMarkerLost: (String) -> Unit,
     onWebError: (String) -> Unit,
-    onDismissWebError: () -> Unit,
-    onSimulateRead: () -> Unit,
-    onNextWord: () -> Unit,
-    onPreviousWord: () -> Unit
+    onCameraPermissionDenied: () -> Unit,
+    onRetry: () -> Unit,
+    onCommandDelivered: (Long) -> Unit
 ) {
     val context = LocalContext.current
-    val currentUnit = uiState.units.getOrNull(uiState.currentWordIndex)
-    val progress = if (uiState.units.isEmpty()) 0f else (uiState.currentWordIndex + 1f) / uiState.units.size
-
-    var isPageLoading by remember { mutableStateOf(true) }
+    val lifecycleOwner = LocalLifecycleOwner.current
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    var pendingPermissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
 
-    DisposableEffect(Unit) {
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val request = pendingPermissionRequest
+        pendingPermissionRequest = null
+        if (granted) {
+            request?.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+        } else {
+            request?.deny()
+            onCameraPermissionDenied()
+        }
+    }
+
+    val stopExperience = remember {
+        {
+            webViewRef?.evaluateJavascript(
+                "window.WebAR && window.WebAR.stop({showActivation:true});",
+                null
+            )
+        }
+    }
+
+    BackHandler {
+        stopExperience()
+        onBackClick()
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> webViewRef?.onResume()
+                Lifecycle.Event.ON_PAUSE -> webViewRef?.onPause()
+                Lifecycle.Event.ON_STOP -> stopExperience()
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            pendingPermissionRequest?.deny()
+            pendingPermissionRequest = null
+            webViewRef?.evaluateJavascript("window.WebAR && window.WebAR.stop();", null)
+            webViewRef?.removeJavascriptInterface(WebArConfig.BRIDGE_NAME)
             webViewRef?.stopLoading()
+            webViewRef?.loadUrl("about:blank")
             webViewRef?.destroy()
             webViewRef = null
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = stringResource(id = R.string.webar_title)) }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                color = Color.Transparent
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            brush = Brush.linearGradient(
-                                listOf(Color(0xFFE53734), Color(0xFFBF2D2B))
+    LaunchedEffect(uiState.outboundCommand?.id, webViewRef) {
+        val envelope = uiState.outboundCommand ?: return@LaunchedEffect
+        val webView = webViewRef ?: return@LaunchedEffect
+        val payload = envelope.command.toJson().toString()
+        webView.evaluateJavascript(
+            "window.WebAR && window.WebAR.receiveNativeMessage(${JSONObject.quote(payload)});",
+            null
+        )
+        onCommandDelivered(envelope.id)
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        androidx.compose.ui.viewinterop.AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = {
+                val assetLoader = WebViewAssetLoader.Builder()
+                    .addPathHandler(
+                        "/assets/",
+                        WebViewAssetLoader.AssetsPathHandler(context)
+                    )
+                    .build()
+
+                WebView(context).apply {
+                    webViewRef = this
+                    WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
+
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = false
+                    settings.mediaPlaybackRequiresUserGesture = true
+                    settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                    settings.allowFileAccess = false
+                    settings.allowContentAccess = false
+                    settings.safeBrowsingEnabled = true
+
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onPermissionRequest(request: PermissionRequest) {
+                            val isTrusted = request.origin.isTrustedWebArOrigin()
+                            val asksForCamera = request.resources.contains(
+                                PermissionRequest.RESOURCE_VIDEO_CAPTURE
                             )
-                        )
-                        .padding(18.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = stringResource(R.string.hero_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = stringResource(R.string.hero_subtitle),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                tonalElevation = 1.dp,
-                color = Color(0xFFFFF3F3)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.current_word),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = currentUnit?.word ?: stringResource(R.string.empty_word),
-                        style = MaterialTheme.typography.displaySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE53734)
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.word_position,
-                            if (uiState.units.isEmpty()) 0 else uiState.currentWordIndex + 1,
-                            uiState.units.size
-                        ),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    if (currentUnit != null) {
-                        Text(
-                            text = stringResource(R.string.word_category, currentUnit.category),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(100.dp))
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AssistChip(
-                    onClick = {},
-                    label = {
-                        Text(
-                            stringResource(
-                                R.string.practices_count,
-                                uiState.completedPractices
-                            )
-                        )
-                    }
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = onPreviousWord,
-                    enabled = uiState.currentWordIndex > 0
-                ) {
-                    Text(text = stringResource(R.string.previous_word))
-                }
-                Button(
-                    modifier = Modifier.weight(1.4f),
-                    onClick = onSimulateRead,
-                    enabled = uiState.units.isNotEmpty()
-                ) {
-                    Text(text = stringResource(R.string.simulate_read))
-                }
-                Button(
-                    modifier = Modifier.weight(1f),
-                    onClick = onNextWord,
-                    enabled = uiState.units.isNotEmpty() && uiState.currentWordIndex < uiState.units.lastIndex
-                ) {
-                    Text(text = stringResource(R.string.next_word))
-                }
-            }
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow
-            ) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = stringResource(R.string.activity_panel_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(260.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surface)
-                    ) {
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = {
-                                WebView(context).apply {
-                                    webViewRef = this
-
-                                    settings.javaScriptEnabled = true
-                                    settings.domStorageEnabled = true
-                                    settings.mediaPlaybackRequiresUserGesture = false
-                                    if (WebArConfig.ALLOW_MIXED_CONTENT) {
-                                        settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-                                    }
-
-                                    webChromeClient = WebChromeClient()
-                                    webViewClient = object : WebViewClient() {
-                                        override fun shouldOverrideUrlLoading(
-                                            view: WebView?,
-                                            request: WebResourceRequest?
-                                        ): Boolean {
-                                            val targetUrl = request?.url?.toString()
-                                            val isAllowed = isAllowedLearningUrl(targetUrl)
-                                            if (!isAllowed) {
-                                                onWebError(context.getString(R.string.friendly_navigation_blocked))
-                                            }
-                                            return !isAllowed
-                                        }
-
-                                        @Deprecated("Deprecated in Java")
-                                        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                                            val isAllowed = isAllowedLearningUrl(url)
-                                            if (!isAllowed) {
-                                                onWebError(context.getString(R.string.friendly_navigation_blocked))
-                                            }
-                                            return !isAllowed
-                                        }
-
-                                        override fun onPageFinished(view: WebView?, url: String?) {
-                                            isPageLoading = false
-                                        }
-
-                                        override fun onReceivedError(
-                                            view: WebView?,
-                                            request: WebResourceRequest?,
-                                            error: android.webkit.WebResourceError?
-                                        ) {
-                                            if (request?.isForMainFrame == true) {
-                                                isPageLoading = false
-                                                onWebError(context.getString(R.string.friendly_load_error))
-                                            }
-                                        }
-
-                                        override fun onReceivedHttpError(
-                                            view: WebView?,
-                                            request: WebResourceRequest?,
-                                            errorResponse: WebResourceResponse?
-                                        ) {
-                                            if (request?.isForMainFrame == true) {
-                                                isPageLoading = false
-                                                onWebError(context.getString(R.string.friendly_load_error))
-                                            }
-                                        }
-                                    }
-
-                                    loadUrl(WebArConfig.WEB_AR_URL)
-                                }
+                            val asksForUnsupportedResource = request.resources.any {
+                                it != PermissionRequest.RESOURCE_VIDEO_CAPTURE
                             }
-                        )
+                            if (!isTrusted || !asksForCamera || asksForUnsupportedResource) {
+                                request.deny()
+                                return
+                            }
 
-                        if (isPageLoading || uiState.isLoading) {
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
+                            if (ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.CAMERA
+                                ) == PackageManager.PERMISSION_GRANTED
                             ) {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    CircularProgressIndicator(modifier = Modifier.width(28.dp))
-                                    Text(
-                                        text = stringResource(R.string.loading),
-                                        modifier = Modifier.padding(top = 12.dp),
-                                        style = MaterialTheme.typography.bodySmall
+                                request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+                            } else {
+                                pendingPermissionRequest?.deny()
+                                pendingPermissionRequest = request
+                                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                            }
+                        }
+
+                        override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                            if (pendingPermissionRequest == request) pendingPermissionRequest = null
+                        }
+                    }
+
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldInterceptRequest(
+                            view: WebView?,
+                            request: WebResourceRequest?
+                        ): WebResourceResponse? {
+                            return request?.url?.let(assetLoader::shouldInterceptRequest)
+                                ?: super.shouldInterceptRequest(view, request)
+                        }
+
+                        override fun shouldOverrideUrlLoading(
+                            view: WebView?,
+                            request: WebResourceRequest?
+                        ): Boolean = !request?.url.isAllowedWebArNavigation()
+
+                        @Deprecated("Deprecated in Java")
+                        override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                            return !url?.let(Uri::parse).isAllowedWebArNavigation()
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView?,
+                            request: WebResourceRequest?,
+                            error: android.webkit.WebResourceError?
+                        ) {
+                            if (request?.isForMainFrame == true) {
+                                onWebError("No fue posible iniciar la experiencia AR")
+                            }
+                        }
+                    }
+
+                    val handleBridgeMessage: (String) -> Unit = { rawMessage ->
+                        runCatching { JSONObject(rawMessage) }
+                            .onSuccess { message ->
+                                when (message.optString("type")) {
+                                    "marker-found" -> onMarkerFound(message.optString("markerId"))
+                                    "marker-lost" -> onMarkerLost(message.optString("markerId"))
+                                    "runtime-error" -> onWebError(
+                                        message.optString("message", "Error en la experiencia AR")
                                     )
                                 }
                             }
-                        }
+                            .onFailure { onWebError("La experiencia AR envió un evento inválido") }
                     }
 
-                    Button(
-                        onClick = {
-                            isPageLoading = true
-                            webViewRef?.reload()
-                            onRetry()
-                        },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Text(text = stringResource(R.string.retry))
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                        WebViewCompat.addWebMessageListener(
+                            this,
+                            WebArConfig.BRIDGE_NAME,
+                            setOf(WebArConfig.TRUSTED_ORIGIN)
+                        ) { _, message, sourceOrigin, isMainFrame, _ ->
+                            if (isMainFrame && sourceOrigin.isTrustedWebArOrigin()) {
+                                message.data?.let(handleBridgeMessage)
+                            }
+                        }
+                    } else {
+                        addJavascriptInterface(
+                            LegacyWebArBridge(handleBridgeMessage),
+                            WebArConfig.BRIDGE_NAME
+                        )
                     }
+
+                    loadUrl(WebArConfig.WEB_AR_URL)
                 }
             }
+        )
 
-            uiState.lastRegisteredWord?.let { word ->
-                AssistChip(
-                    onClick = {},
-                    label = { Text(stringResource(R.string.practice_feedback, word)) }
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .statusBarsPadding()
+                .padding(12.dp),
+            shape = RoundedCornerShape(50),
+            color = Color.Black.copy(alpha = 0.58f)
+        ) {
+            IconButton(onClick = {
+                stopExperience()
+                onBackClick()
+            }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Cerrar realidad aumentada",
+                    tint = Color.White
                 )
             }
+        }
 
-            uiState.generalError?.let { error ->
-                Text(
-                    text = error,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-
-            uiState.webError?.let { webError ->
-                Surface(
-                    tonalElevation = 2.dp,
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(12.dp),
+            shape = RoundedCornerShape(18.dp),
+            color = Color.Black.copy(alpha = 0.68f)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (uiState.isAssetLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(4.dp),
+                        color = Color.White
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = uiState.statusMessage,
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    uiState.errorMessage?.let { error ->
                         Text(
-                            text = stringResource(id = R.string.friendly_error_title),
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Text(
-                            text = webError,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            text = error,
+                            color = Color(0xFFFFB4AB),
                             style = MaterialTheme.typography.bodySmall
                         )
-                        Button(
-                            onClick = {
-                                onDismissWebError()
-                                isPageLoading = true
-                                webViewRef?.reload()
-                            }
-                        ) {
-                            Text(text = stringResource(id = R.string.dismiss))
-                        }
                     }
+                }
+                if (uiState.errorMessage != null && uiState.activeMarkerId != null) {
+                    Button(onClick = onRetry) { Text("Reintentar") }
                 }
             }
         }
     }
 }
 
-private fun isAllowedLearningUrl(url: String?): Boolean {
-    if (url.isNullOrBlank()) return false
-
-    if (url.startsWith("file:///android_asset/")) return true
-    if (url == "about:blank") return true
-
-    val configuredUrl = WebArConfig.WEB_AR_URL
-    if (configuredUrl.startsWith("http://") || configuredUrl.startsWith("https://")) {
-        val configuredUri = Uri.parse(configuredUrl)
-        val requestedUri = Uri.parse(url)
-        return configuredUri.scheme == requestedUri.scheme && configuredUri.host == requestedUri.host
-    }
-
-    return false
+private class LegacyWebArBridge(
+    private val onMessage: (String) -> Unit
+) {
+    @JavascriptInterface
+    fun postMessage(message: String) = onMessage(message)
 }
 
+private fun Uri?.isTrustedWebArOrigin(): Boolean {
+    if (this == null) return false
+    val trusted = Uri.parse(WebArConfig.TRUSTED_ORIGIN)
+    return scheme == trusted.scheme && host == trusted.host && effectivePort() == trusted.effectivePort()
+}
 
+private fun Uri?.isAllowedWebArNavigation(): Boolean {
+    if (this == null) return false
+    if (toString() == "about:blank") return true
+    return isTrustedWebArOrigin()
+}
 
+private fun Uri.effectivePort(): Int = when {
+    port != -1 -> port
+    scheme == "https" -> 443
+    else -> 80
+}
+
+private fun WebArCommand.toJson(): JSONObject = when (this) {
+    is WebArCommand.AssetReady -> JSONObject()
+        .put("type", "asset-ready")
+        .put("asset", asset.toJson())
+
+    is WebArCommand.MarkerNotFound -> JSONObject()
+        .put("type", "marker-not-found")
+        .put("markerId", markerId)
+
+    is WebArCommand.AssetError -> JSONObject()
+        .put("type", "asset-error")
+        .put("markerId", markerId)
+        .put("message", message)
+
+    is WebArCommand.ClearMarker -> JSONObject()
+        .put("type", "clear-marker")
+        .put("markerId", markerId)
+
+    WebArCommand.CameraPermissionDenied -> JSONObject()
+        .put("type", "camera-permission-denied")
+}
+
+private fun ArAsset.toJson(): JSONObject = JSONObject()
+    .put("id", id)
+    .put("learningUnitId", learningUnitId)
+    .put("markerId", markerId)
+    .put("word", word)
+    .apply {
+        model3dUrl?.let { put("model3dUrl", it) }
+        audioUrl?.let { put("audioUrl", it) }
+        accessibilityLabel?.let { put("accessibilityLabel", it) }
+    }

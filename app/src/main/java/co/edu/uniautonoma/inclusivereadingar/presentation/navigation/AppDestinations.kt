@@ -17,7 +17,7 @@ object AppDestinations {
     const val TEACHER_EDIT_WORD_CARD_ROUTE = "teacher_edit_word_card/{cardId}"
     const val TEACHER_COMPLETED_CARDS_ROUTE = "teacher_completed_cards/{studentId}/{categoryId}/{categoryName}/{phase2Ready}"
     const val START_ROUTE = LOGIN_ROUTE
-    const val PRACTICE_ROUTE = "practice/{categoryId}/{categoryName}"
+    const val PRACTICE_ROUTE = "webar_practice"
 
     fun domanSessionRoute(categoryId: String, categoryName: String): String {
         return "doman_session/$categoryId/${android.net.Uri.encode(categoryName)}"
@@ -25,10 +25,6 @@ object AppDestinations {
 
     fun sessionSummaryRoute(categoryName: String, cardsCount: Int): String {
         return "session_summary/${android.net.Uri.encode(categoryName)}/$cardsCount"
-    }
-
-    fun practiceRoute(categoryId: String, categoryName: String): String {
-        return "practice/$categoryId/${android.net.Uri.encode(categoryName)}"
     }
 
     fun teacherCategoryCardsRoute(categoryId: String, categoryName: String): String {

@@ -3,136 +3,179 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentProgress
-import co.edu.uniautonoma.inclusivereadingar.domain.repository.LearningRepository
-import co.edu.uniautonoma.inclusivereadingar.domain.usecase.GetDailyWordsUseCase
-import co.edu.uniautonoma.inclusivereadingar.domain.usecase.RegisterProgressUseCase
+import co.edu.uniautonoma.inclusivereadingar.domain.model.ArAsset
+import co.edu.uniautonoma.inclusivereadingar.domain.repository.ArAssetRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.Instant
 
 class WebArViewModel(
-    private val getDailyWordsUseCase: GetDailyWordsUseCase,
-    private val registerProgressUseCase: RegisterProgressUseCase
+    private val arAssetRepository: ArAssetRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WebArUiState())
     val uiState: StateFlow<WebArUiState> = _uiState.asStateFlow()
 
-    init {
-        refreshContent()
-    }
+    private val sessionCache = mutableMapOf<String, ArAsset?>()
+    private var lookupJob: Job? = null
+    private var requestVersion = 0L
+    private var commandVersion = 0L
 
-    fun refreshContent() {
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    isLoading = true,
-                    generalError = null,
-                    webError = null
-                )
-            }
-
-            runCatching { getDailyWordsUseCase() }
-                .onSuccess { units ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            units = units,
-                            currentWordIndex = 0,
-                            completedPractices = 0,
-                            lastRegisteredWord = null,
-                            generalError = null
-                        )
-                    }
-                }
-                .onFailure {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            generalError = "No fue posible cargar el contenido de práctica."
-                        )
-                    }
-                }
+    fun onMarkerFound(rawMarkerId: String) {
+        val markerId = rawMarkerId.trim()
+        if (!markerId.matches(MARKER_ID_PATTERN)) {
+            publishError(markerId.ifBlank { "unknown" }, "El marcador detectado no es válido")
+            return
         }
-    }
 
-    fun nextWord() {
-        _uiState.update { state ->
-            if (state.units.isEmpty()) {
-                state
-            } else {
-                val lastIndex = state.units.lastIndex
-                val nextIndex = (state.currentWordIndex + 1).coerceAtMost(lastIndex)
-                state.copy(currentWordIndex = nextIndex)
-            }
+        val current = _uiState.value
+        if (current.activeMarkerId == markerId &&
+            (current.isAssetLoading || current.asset != null || current.markerWithoutAssociation)
+        ) {
+            return
         }
-    }
 
-    fun previousWord() {
-        _uiState.update { state ->
-            if (state.units.isEmpty()) {
-                state
-            } else {
-                val previousIndex = (state.currentWordIndex - 1).coerceAtLeast(0)
-                state.copy(currentWordIndex = previousIndex)
-            }
-        }
-    }
-
-    fun registerSimulatedRead() {
-        val state = _uiState.value
-        val selected = state.units.getOrNull(state.currentWordIndex) ?: return
-
-        viewModelScope.launch {
-            val progress = StudentProgress(
-                studentId = "demo-student",
-                learningUnitId = selected.id,
-                markerId = selected.markerId,
-                success = true,
-                timestamp = Instant.now()
+        lookupJob?.cancel()
+        requestVersion += 1
+        val version = requestVersion
+        _uiState.update {
+            it.copy(
+                activeMarkerId = markerId,
+                asset = null,
+                isAssetLoading = true,
+                markerWithoutAssociation = false,
+                statusMessage = "Consultando contenido…",
+                errorMessage = null
             )
+        }
 
-            runCatching { registerProgressUseCase(progress) }
-                .onSuccess {
-                    _uiState.update { current ->
-                        val size = current.units.size
-                        val nextIndex = if (size == 0) 0 else (current.currentWordIndex + 1) % size
-                        current.copy(
-                            currentWordIndex = nextIndex,
-                            completedPractices = current.completedPractices + 1,
-                            lastRegisteredWord = selected.word,
-                            generalError = null
-                        )
-                    }
+        if (sessionCache.containsKey(markerId)) {
+            applyLookupResult(markerId, sessionCache[markerId])
+            return
+        }
+
+        lookupJob = viewModelScope.launch {
+            runCatching { arAssetRepository.findByMarker(markerId) }
+                .onSuccess { asset ->
+                    if (version != requestVersion || _uiState.value.activeMarkerId != markerId) return@onSuccess
+                    sessionCache[markerId] = asset
+                    applyLookupResult(markerId, asset)
                 }
                 .onFailure {
-                    _uiState.update {
-                        it.copy(generalError = "No fue posible registrar el avance en este momento.")
-                    }
+                    if (version != requestVersion || _uiState.value.activeMarkerId != markerId) return@onFailure
+                    publishError(markerId, "No fue posible cargar el contenido del marcador")
                 }
         }
+    }
+
+    fun onMarkerLost(rawMarkerId: String) {
+        val markerId = rawMarkerId.trim()
+        if (_uiState.value.activeMarkerId != markerId) return
+        lookupJob?.cancel()
+        requestVersion += 1
+        _uiState.update {
+            it.copy(
+                activeMarkerId = null,
+                asset = null,
+                isAssetLoading = false,
+                markerWithoutAssociation = false,
+                statusMessage = "Marcador perdido. Enfoca una tarjeta.",
+                errorMessage = null,
+                outboundCommand = envelope(WebArCommand.ClearMarker(markerId))
+            )
+        }
+    }
+
+    fun retryActiveMarker() {
+        val markerId = _uiState.value.activeMarkerId ?: return
+        sessionCache.remove(markerId)
+        _uiState.update { it.copy(activeMarkerId = null) }
+        onMarkerFound(markerId)
     }
 
     fun onWebError(message: String) {
-        _uiState.update { it.copy(webError = message) }
+        _uiState.update {
+            it.copy(
+                isAssetLoading = false,
+                statusMessage = "La experiencia AR encontró un problema",
+                errorMessage = message.take(MAX_ERROR_LENGTH)
+            )
+        }
     }
 
-    fun clearWebError() {
-        _uiState.update { it.copy(webError = null) }
+    fun onCameraPermissionDenied() {
+        _uiState.update {
+            it.copy(
+                statusMessage = "Permiso de cámara denegado",
+                errorMessage = "La cámara es necesaria para reconocer las tarjetas.",
+                outboundCommand = envelope(WebArCommand.CameraPermissionDenied)
+            )
+        }
+    }
+
+    fun onCommandDelivered(commandId: Long) {
+        _uiState.update { state ->
+            if (state.outboundCommand?.id == commandId) state.copy(outboundCommand = null) else state
+        }
+    }
+
+    private fun applyLookupResult(markerId: String, asset: ArAsset?) {
+        if (asset == null) {
+            _uiState.update {
+                it.copy(
+                    isAssetLoading = false,
+                    markerWithoutAssociation = true,
+                    statusMessage = "El marcador no tiene contenido asociado",
+                    outboundCommand = envelope(WebArCommand.MarkerNotFound(markerId))
+                )
+            }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                asset = asset,
+                isAssetLoading = false,
+                markerWithoutAssociation = false,
+                statusMessage = "Mostrando ${asset.word}",
+                errorMessage = null,
+                outboundCommand = envelope(WebArCommand.AssetReady(asset))
+            )
+        }
+    }
+
+    private fun publishError(markerId: String, message: String) {
+        _uiState.update {
+            it.copy(
+                isAssetLoading = false,
+                markerWithoutAssociation = false,
+                statusMessage = "No se pudo cargar el contenido",
+                errorMessage = message,
+                outboundCommand = envelope(WebArCommand.AssetError(markerId, message))
+            )
+        }
+    }
+
+    private fun envelope(command: WebArCommand): WebArCommandEnvelope {
+        commandVersion += 1
+        return WebArCommandEnvelope(commandVersion, command)
+    }
+
+    private companion object {
+        val MARKER_ID_PATTERN = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+        const val MAX_ERROR_LENGTH = 240
     }
 }
 
-class WebArViewModelFactory(private val repository: LearningRepository) : ViewModelProvider.Factory {
+class WebArViewModelFactory(
+    private val arAssetRepository: ArAssetRepository
+) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(WebArViewModel::class.java)) {
-            return WebArViewModel(
-                getDailyWordsUseCase = GetDailyWordsUseCase(repository),
-                registerProgressUseCase = RegisterProgressUseCase(repository)
-            ) as T
+            return WebArViewModel(arAssetRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
