@@ -94,51 +94,45 @@ fun ThemesScreen(
             color = Color.White,
             shadowElevation = 3.dp
         ) {
-            androidx.compose.foundation.layout.Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 androidx.compose.foundation.layout.Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(Color(0xFFE53734).copy(alpha = 0.12f), CircleShape),
-                        contentAlignment = Alignment.Center
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoStories,
-                            contentDescription = null,
-                            tint = Color(0xFFE53734)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = "Temas",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 24.sp
-                        )
-                        Text(
-                            text = "Elige una tematica para iniciar la sesion",
-                            color = Color(0xFF64748B)
-                        )
-                    }
-                }
-                androidx.compose.foundation.layout.Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onOpenAr) {
-                        Icon(
-                            imageVector = Icons.Rounded.CenterFocusStrong,
-                            contentDescription = "Abrir realidad aumentada",
-                            tint = Color(0xFFE53734)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(Color(0xFFE53734).copy(alpha = 0.12f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoStories,
+                                contentDescription = null,
+                                tint = Color(0xFFE53734)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Temas",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 24.sp
+                            )
+                            Text(
+                                text = "Elige una tematica para iniciar la sesion",
+                                color = Color(0xFF64748B)
+                            )
+                        }
                     }
                     androidx.compose.foundation.layout.Row(
                         modifier = Modifier
@@ -158,6 +152,34 @@ fun ThemesScreen(
                             color = Color(0xFFE53734),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
+                        )
+                    }
+                }
+
+                Surface(
+                    onClick = onOpenAr,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFFE53734),
+                    contentColor = Color.White
+                ) {
+                    androidx.compose.foundation.layout.Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            space = 8.dp,
+                            alignment = Alignment.CenterHorizontally
+                        ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.CenterFocusStrong,
+                            contentDescription = null
+                        )
+                        Text(
+                            text = "Explorar modelos 3D",
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
