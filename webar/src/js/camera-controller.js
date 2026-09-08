@@ -27,8 +27,8 @@ export class CameraController {
     if (this.scene) return this.markerEntries;
     if (!window.AFRAME || !window.ARjs) throw new Error("El motor AR no está disponible");
 
-    document.addEventListener("camera-init", this.cameraReadyHandler, { once: true });
-    document.addEventListener("camera-error", this.cameraErrorHandler, { once: true });
+    window.addEventListener("camera-init", this.cameraReadyHandler, { once: true });
+    window.addEventListener("camera-error", this.cameraErrorHandler, { once: true });
 
     const scene = document.createElement("a-scene");
     scene.setAttribute("embedded", "");
@@ -77,8 +77,8 @@ export class CameraController {
   }
 
   stop() {
-    document.removeEventListener("camera-init", this.cameraReadyHandler);
-    document.removeEventListener("camera-error", this.cameraErrorHandler);
+    window.removeEventListener("camera-init", this.cameraReadyHandler);
+    window.removeEventListener("camera-error", this.cameraErrorHandler);
     for (const video of document.querySelectorAll("video")) {
       for (const track of video.srcObject?.getTracks?.() ?? []) track.stop();
       video.pause();
