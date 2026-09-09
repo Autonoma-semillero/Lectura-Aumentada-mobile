@@ -63,6 +63,10 @@ body,
   background: transparent !important;
 }
 
+#word-model-root {
+  pointer-events: none;
+}
+
 .hidden {
   display: none !important;
 }

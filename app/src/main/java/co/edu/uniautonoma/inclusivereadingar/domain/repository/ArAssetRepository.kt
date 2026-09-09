@@ -4,4 +4,5 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.ArAsset
 
 interface ArAssetRepository {
     suspend fun findByMarker(markerId: String): ArAsset?
+    suspend fun findByWord(word: String): ArAsset?
 }

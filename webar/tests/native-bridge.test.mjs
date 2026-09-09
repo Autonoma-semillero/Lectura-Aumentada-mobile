@@ -1,6 +1,30 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseAsset, parseNativeMessage } from "../src/js/native-bridge.js";
+import { NativeBridge, parseAsset, parseNativeMessage } from "../src/js/native-bridge.js";
+
+test("attaches an unspoofable document session to every bridge event", (context) => {
+  const previousWindow = globalThis.window;
+  let message = null;
+  globalThis.window = {
+    lecturaAumentada: {
+      postMessage(rawMessage) {
+        message = JSON.parse(rawMessage);
+      },
+    },
+  };
+  context.after(() => {
+    globalThis.window = previousWindow;
+  });
+
+  const bridge = new NativeBridge("lecturaAumentada", "native-session-42");
+  bridge.send("camera-ready", { type: "spoofed", sessionId: "old-page", value: 7 });
+
+  assert.deepEqual(message, {
+    type: "camera-ready",
+    sessionId: "native-session-42",
+    value: 7,
+  });
+});
 
 test("accepts the typed asset contract returned by the Android host", () => {
   const asset = parseAsset({

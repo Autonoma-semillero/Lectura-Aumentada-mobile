@@ -2,10 +2,12 @@ package co.edu.uniautonoma.inclusivereadingar.data.remote
 
 import android.net.Uri
 import co.edu.uniautonoma.inclusivereadingar.domain.model.ArAsset
+import co.edu.uniautonoma.inclusivereadingar.domain.ocr.OcrWordNormalizer
 import org.json.JSONObject
 
 interface ArAssetsApi {
     suspend fun findByMarker(markerId: String, accessToken: String): ArAsset?
+    suspend fun findByWord(word: String, accessToken: String): ArAsset?
 }
 
 class HttpArAssetsApi(
@@ -15,26 +17,47 @@ class HttpArAssetsApi(
         val normalizedMarkerId = markerId.trim()
         require(normalizedMarkerId.matches(MARKER_ID_PATTERN)) { "Invalid marker identifier" }
 
+        val asset = requestAsset(
+            path = "/assets/marker/${Uri.encode(normalizedMarkerId)}",
+            accessToken = accessToken
+        ) ?: return null
+        require(asset.markerId == normalizedMarkerId) {
+            "Marker response does not match the request"
+        }
+        return asset
+    }
+
+    override suspend fun findByWord(word: String, accessToken: String): ArAsset? {
+        val normalizedWord = requireNotNull(OcrWordNormalizer.normalize(word)) {
+            "Invalid OCR word"
+        }
+        val asset = requestAsset(
+            path = "/assets/word/${Uri.encode(normalizedWord)}",
+            accessToken = accessToken
+        ) ?: return null
+        require(OcrWordNormalizer.normalize(asset.word) == normalizedWord) {
+            "Word response does not match the request"
+        }
+        return asset
+    }
+
+    private suspend fun requestAsset(path: String, accessToken: String): ArAsset? {
         val response = try {
-            httpClient.get(
-                path = "/assets/marker/${Uri.encode(normalizedMarkerId)}",
-                accessToken = accessToken
-            )
+            httpClient.get(path = path, accessToken = accessToken)
         } catch (error: BackendException) {
             if (error.statusCode == 404) return null
             throw error
         }
 
         if (response.isBlank() || response.trim() == "null") return null
-        return parseAsset(JSONObject(response), normalizedMarkerId)
+        return parseAsset(JSONObject(response))
     }
 
-    private fun parseAsset(json: JSONObject, requestedMarkerId: String): ArAsset {
+    private fun parseAsset(json: JSONObject): ArAsset {
         val id = json.requiredString("id")
         val learningUnitId = json.requiredString("learning_unit_id")
         val markerId = json.requiredString("marker_id")
         val word = json.requiredString("word")
-        require(markerId == requestedMarkerId) { "Marker response does not match the request" }
 
         val accessibility = json.optJSONObject("metadata_accessibility")
         val accessibilityLabel = accessibility?.firstNonBlank(

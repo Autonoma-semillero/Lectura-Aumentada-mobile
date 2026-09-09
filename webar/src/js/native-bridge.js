@@ -1,6 +1,7 @@
 export class NativeBridge {
-  constructor(bridgeName = "lecturaAumentada") {
+  constructor(bridgeName = "lecturaAumentada", sessionId = readNativeSessionId()) {
     this.bridgeName = bridgeName;
+    this.sessionId = sessionId;
   }
 
   send(type, payload = {}) {
@@ -8,8 +9,24 @@ export class NativeBridge {
     if (!bridge || typeof bridge.postMessage !== "function") {
       throw new Error("El puente con la aplicación no está disponible");
     }
-    bridge.postMessage(JSON.stringify({ type, ...payload }));
+    if (!isValidSessionId(this.sessionId)) {
+      throw new Error("La sesión del documento AR no es válida");
+    }
+    // Protocol-owned fields go last so a payload cannot spoof another page or event.
+    bridge.postMessage(JSON.stringify({ ...payload, type, sessionId: this.sessionId }));
   }
+}
+
+function readNativeSessionId() {
+  try {
+    return new URL(window.location.href).searchParams.get("nativeSession") ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function isValidSessionId(value) {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/u.test(value);
 }
 
 export function parseNativeMessage(rawMessage) {

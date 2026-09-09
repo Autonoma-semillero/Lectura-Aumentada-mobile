@@ -12,6 +12,16 @@ class BackendArAssetRepository(
     override suspend fun findByMarker(markerId: String): ArAsset? {
         val session = checkNotNull(sessionStore.getSession()) { "An authenticated session is required" }
         val asset = assetsApi.findByMarker(markerId, session.accessToken) ?: return null
+        return resolveUrls(asset)
+    }
+
+    override suspend fun findByWord(word: String): ArAsset? {
+        val session = checkNotNull(sessionStore.getSession()) { "An authenticated session is required" }
+        val asset = assetsApi.findByWord(word, session.accessToken) ?: return null
+        return resolveUrls(asset)
+    }
+
+    private suspend fun resolveUrls(asset: ArAsset): ArAsset {
         val baseUrl = sessionStore.resolveBackendBaseUrl()
         return asset.copy(
             model3dUrl = asset.model3dUrl?.let { resolveAssetUrl(it, baseUrl) },

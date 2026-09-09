@@ -103,6 +103,8 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:1.4.2")
     implementation("androidx.camera:camera-view:1.4.2")
     implementation("androidx.webkit:webkit:1.15.0")
+    // Bundled Latin model: OCR works immediately and camera frames never leave the device.
+    implementation(libs.mlkit.text.recognition)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)

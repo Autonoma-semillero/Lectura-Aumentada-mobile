@@ -2,8 +2,12 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.screens
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
@@ -60,11 +64,20 @@ import co.edu.uniautonoma.inclusivereadingar.BuildConfig
 import co.edu.uniautonoma.inclusivereadingar.appContainer
 import co.edu.uniautonoma.inclusivereadingar.config.WebArConfig
 import co.edu.uniautonoma.inclusivereadingar.domain.model.ArAsset
+import co.edu.uniautonoma.inclusivereadingar.domain.ocr.OcrWordEvent
+import co.edu.uniautonoma.inclusivereadingar.domain.ocr.OcrWordStabilizer
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArCommand
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArUiState
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArViewModelFactory
+import co.edu.uniautonoma.inclusivereadingar.presentation.webar.WebArOcrPipeline
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import org.json.JSONObject
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
 
 @Composable
 fun WebArRoute(onBackClick: () -> Unit) {
@@ -80,9 +93,16 @@ fun WebArRoute(onBackClick: () -> Unit) {
         onBackClick = onBackClick,
         onMarkerFound = viewModel::onMarkerFound,
         onMarkerLost = viewModel::onMarkerLost,
+        onOcrWordDetected = viewModel::onOcrWordDetected,
+        onOcrWordPositionUpdated = viewModel::onOcrWordPositionUpdated,
+        onOcrWordLost = viewModel::onOcrWordLost,
+        onCameraReady = viewModel::onCameraReady,
+        onExperienceStopped = viewModel::onExperienceStopped,
+        onModelReady = viewModel::onModelReady,
+        onModelError = viewModel::onModelError,
         onWebError = viewModel::onWebError,
         onCameraPermissionDenied = viewModel::onCameraPermissionDenied,
-        onRetry = viewModel::retryActiveMarker,
+        onRetry = viewModel::retryActiveTarget,
         onCommandDelivered = viewModel::onCommandDelivered
     )
 }
@@ -94,6 +114,13 @@ fun WebArScreen(
     onBackClick: () -> Unit,
     onMarkerFound: (String) -> Unit,
     onMarkerLost: (String) -> Unit,
+    onOcrWordDetected: (String, Float, Float, Float) -> Unit,
+    onOcrWordPositionUpdated: (String, Float, Float, Float) -> Unit,
+    onOcrWordLost: (String) -> Unit,
+    onCameraReady: () -> Unit,
+    onExperienceStopped: () -> Unit,
+    onModelReady: (String) -> Unit,
+    onModelError: (String, String) -> Unit,
     onWebError: (String) -> Unit,
     onCameraPermissionDenied: () -> Unit,
     onRetry: () -> Unit,
@@ -101,28 +128,105 @@ fun WebArScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val activity = remember(context) { context.findActivity() }
+    val ocrPipeline = remember(activity) { activity?.window?.let(::WebArOcrPipeline) }
+    val ocrStabilizer = remember { OcrWordStabilizer() }
+    val reloadGeneration = remember { AtomicLong(0L) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var pendingPermissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
+    var isCameraReady by remember { mutableStateOf(false) }
+    val resumeCoordinator = remember { WebArResumeCoordinator() }
+    var autoActivateAfterReload by remember { mutableStateOf(false) }
+    var acceptsCameraReady by remember { mutableStateOf(false) }
+    var isDocumentReloading by remember { mutableStateOf(false) }
+    var expectedDocumentSessionId by remember { mutableStateOf<String?>(null) }
+    var activeDocumentSessionId by remember { mutableStateOf<String?>(null) }
+
+    val resetOcr = remember(ocrStabilizer, onOcrWordLost) {
+        {
+            ocrStabilizer.reset().forEach { event ->
+                if (event is OcrWordEvent.Lost) onOcrWordLost(event.word)
+            }
+        }
+    }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         val request = pendingPermissionRequest
         pendingPermissionRequest = null
-        if (granted) {
-            request?.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
-        } else {
-            request?.deny()
-            onCameraPermissionDenied()
+        if (request != null) {
+            if (granted) {
+                request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))
+            } else {
+                request.deny()
+                onCameraPermissionDenied()
+            }
         }
     }
 
-    val stopExperience = remember {
+    val stopExperience = remember(resetOcr, onExperienceStopped) {
         {
-            webViewRef?.evaluateJavascript(
-                "window.WebAR && window.WebAR.stop({showActivation:true});",
-                null
-            )
+            isCameraReady = false
+            resumeCoordinator.cancelRestart()
+            acceptsCameraReady = false
+            isDocumentReloading = false
+            expectedDocumentSessionId = null
+            activeDocumentSessionId = null
+            autoActivateAfterReload = false
+            reloadGeneration.incrementAndGet()
+            pendingPermissionRequest?.deny()
+            pendingPermissionRequest = null
+            onExperienceStopped()
+            resetOcr()
+            try {
+                webViewRef?.evaluateJavascript(
+                    "window.WebAR && window.WebAR.stop({showActivation:true});",
+                    null
+                )
+            } catch (_: RuntimeException) {
+                // The WebView may already be detaching after a main-frame failure.
+            }
+        }
+    }
+
+    val reloadExperienceDocument = remember(resetOcr, onExperienceStopped) {
+        reload@{ autoActivate: Boolean ->
+            isCameraReady = false
+            resumeCoordinator.cancelRestart()
+            acceptsCameraReady = false
+            isDocumentReloading = true
+            val documentSessionId = UUID.randomUUID().toString()
+            expectedDocumentSessionId = documentSessionId
+            activeDocumentSessionId = null
+            pendingPermissionRequest?.deny()
+            pendingPermissionRequest = null
+            onExperienceStopped()
+            resetOcr()
+            autoActivateAfterReload = autoActivate
+            val webView = webViewRef ?: return@reload
+            val generation = reloadGeneration.incrementAndGet()
+            val reloadGate = WebArReloadGate(generation)
+            lateinit var fallback: Runnable
+            val reloadOnce = {
+                if (reloadGate.tryAcquire(
+                        currentGeneration = reloadGeneration.get(),
+                        isCurrentWebView = webViewRef === webView
+                    )
+                ) {
+                    webView.removeCallbacks(fallback)
+                    webView.loadUrl(webArDocumentUrl(documentSessionId))
+                }
+            }
+            fallback = Runnable { reloadOnce() }
+            webView.postDelayed(fallback, WEB_AR_RELOAD_FALLBACK_MS)
+            try {
+                webView.evaluateJavascript("window.WebAR && window.WebAR.stop();") {
+                    webView.post { reloadOnce() }
+                }
+            } catch (_: RuntimeException) {
+                webView.post { reloadOnce() }
+            }
         }
     }
 
@@ -134,23 +238,84 @@ fun WebArScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> webViewRef?.onResume()
-                Lifecycle.Event.ON_PAUSE -> webViewRef?.onPause()
-                Lifecycle.Event.ON_STOP -> stopExperience()
+                Lifecycle.Event.ON_RESUME -> {
+                    webViewRef?.onResume()
+                    if (resumeCoordinator.consumeRestartOnResume()) {
+                        // JS stops AR on visibility loss; rebuild instead of trusting stale readiness.
+                        reloadExperienceDocument(true)
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    resumeCoordinator.onPause(isCameraReady)
+                    isCameraReady = false
+                    resetOcr()
+                    webViewRef?.onPause()
+                }
+                // A document reload releases every AR.js listener/timer before reactivation.
+                Lifecycle.Event.ON_STOP -> reloadExperienceDocument(false)
                 else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    DisposableEffect(ocrPipeline) {
+        onDispose {
+            reloadGeneration.incrementAndGet()
             pendingPermissionRequest?.deny()
             pendingPermissionRequest = null
+            isCameraReady = false
+            resumeCoordinator.cancelRestart()
+            acceptsCameraReady = false
+            isDocumentReloading = false
+            expectedDocumentSessionId = null
+            activeDocumentSessionId = null
+            onExperienceStopped()
+            resetOcr()
             webViewRef?.evaluateJavascript("window.WebAR && window.WebAR.stop();", null)
             webViewRef?.removeJavascriptInterface(WebArConfig.BRIDGE_NAME)
             webViewRef?.stopLoading()
             webViewRef?.loadUrl("about:blank")
             webViewRef?.destroy()
             webViewRef = null
+            ocrPipeline?.close()
+        }
+    }
+
+    LaunchedEffect(isCameraReady, webViewRef, uiState.activeMarkerId, ocrPipeline) {
+        val webView = webViewRef
+        if (!isCameraReady || webView == null || ocrPipeline == null ||
+            uiState.activeMarkerId != null
+        ) {
+            resetOcr()
+            return@LaunchedEffect
+        }
+
+        delay(WebArOcrPipeline.CAMERA_WARM_UP_MS)
+        while (currentCoroutineContext().isActive) {
+            try {
+                val candidates = ocrPipeline.scan(webView)
+                ocrStabilizer.update(candidates).forEach { event ->
+                    when (event) {
+                        is OcrWordEvent.Detected -> with(event.candidate) {
+                            onOcrWordDetected(word, confidence, centerX, centerY)
+                        }
+                        is OcrWordEvent.Updated -> with(event.candidate) {
+                            onOcrWordPositionUpdated(word, confidence, centerX, centerY)
+                        }
+                        is OcrWordEvent.Lost -> onOcrWordLost(event.word)
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // OCR is an enhancement; marker tracking remains usable if one frame fails.
+                Log.w(WEB_AR_LOG_TAG, "On-device OCR frame failed", error)
+            }
+            delay(WebArOcrPipeline.SCAN_INTERVAL_MS)
         }
     }
 
@@ -190,6 +355,10 @@ fun WebArScreen(
 
                     webChromeClient = object : WebChromeClient() {
                         override fun onPermissionRequest(request: PermissionRequest) {
+                            if (!acceptsCameraReady || isDocumentReloading) {
+                                request.deny()
+                                return
+                            }
                             val isTrusted = request.origin.isTrustedWebArOrigin()
                             val asksForCamera = request.resources.contains(
                                 PermissionRequest.RESOURCE_VIDEO_CAPTURE
@@ -244,24 +413,113 @@ fun WebArScreen(
                             request: WebResourceRequest?,
                             error: android.webkit.WebResourceError?
                         ) {
-                            if (request?.isForMainFrame == true) {
+                            val failedSessionId = request?.url?.toString()
+                                .webArDocumentSessionId()
+                            if (request?.isForMainFrame == true &&
+                                failedSessionId != null &&
+                                view === webViewRef &&
+                                (failedSessionId == activeDocumentSessionId ||
+                                    failedSessionId == expectedDocumentSessionId)
+                            ) {
+                                stopExperience()
                                 onWebError("No fue posible iniciar la experiencia AR")
                             }
+                        }
+
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                            val finishedSessionId = url.webArDocumentSessionId()
+                            if (view === webViewRef &&
+                                finishedSessionId != null &&
+                                finishedSessionId == expectedDocumentSessionId
+                            ) {
+                                isDocumentReloading = false
+                                expectedDocumentSessionId = null
+                                activeDocumentSessionId = finishedSessionId
+                                acceptsCameraReady = true
+                            }
+                            if (!autoActivateAfterReload ||
+                                finishedSessionId != activeDocumentSessionId
+                            ) {
+                                return
+                            }
+                            autoActivateAfterReload = false
+                            view?.evaluateJavascript(
+                                """
+                                    (function () {
+                                      var button = document.getElementById('activate-camera');
+                                      if (button) button.click();
+                                    })();
+                                """.trimIndent(),
+                                null
+                            )
                         }
                     }
 
                     val handleBridgeMessage: (String) -> Unit = { rawMessage ->
                         runCatching { JSONObject(rawMessage) }
                             .onSuccess { message ->
-                                when (message.optString("type")) {
-                                    "marker-found" -> onMarkerFound(message.optString("markerId"))
-                                    "marker-lost" -> onMarkerLost(message.optString("markerId"))
-                                    "runtime-error" -> onWebError(
-                                        message.optString("message", "Error en la experiencia AR")
-                                    )
+                                post {
+                                    val type = message.optString("type")
+                                    val messageSessionId = message.optString("sessionId")
+                                        .takeIf(String::isNotBlank)
+                                    val isResumed = lifecycleOwner.lifecycle.currentState
+                                        .isAtLeast(Lifecycle.State.RESUMED)
+                                    if (!shouldProcessWebArBridgeEvent(
+                                            type = type,
+                                            messageSessionId = messageSessionId,
+                                            activeSessionId = activeDocumentSessionId,
+                                            acceptsSessionEvents = acceptsCameraReady,
+                                            isDocumentReloading = isDocumentReloading,
+                                            isLifecycleResumed = isResumed
+                                        )
+                                    ) {
+                                        return@post
+                                    }
+                                    when (type) {
+                                        "camera-ready" -> {
+                                            if (isResumed) {
+                                                resumeCoordinator.cancelRestart()
+                                                isCameraReady = true
+                                                onCameraReady()
+                                            } else {
+                                                resumeCoordinator.requestRestart()
+                                            }
+                                        }
+                                        "model-ready" -> message.optString("assetId")
+                                            .takeIf(String::isNotBlank)
+                                            ?.let(onModelReady)
+                                        "model-error" -> message.optString("assetId")
+                                            .takeIf(String::isNotBlank)
+                                            ?.let { assetId ->
+                                                onModelError(
+                                                    assetId,
+                                                    message.optString(
+                                                        "message",
+                                                        "No fue posible renderizar el modelo 3D"
+                                                    )
+                                                )
+                                            }
+                                        "camera-retry-requested" -> {
+                                            reloadExperienceDocument(true)
+                                        }
+                                        "marker-found" -> onMarkerFound(message.optString("markerId"))
+                                        "marker-lost" -> onMarkerLost(message.optString("markerId"))
+                                        "runtime-error" -> {
+                                            stopExperience()
+                                            onWebError(
+                                                message.optString(
+                                                    "message",
+                                                    "Error en la experiencia AR"
+                                                )
+                                            )
+                                        }
+                                    }
                                 }
                             }
-                            .onFailure { onWebError("La experiencia AR envió un evento inválido") }
+                            .onFailure {
+                                post { onWebError("La experiencia AR envió un evento inválido") }
+                            }
                     }
 
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
@@ -281,7 +539,10 @@ fun WebArScreen(
                         )
                     }
 
-                    loadUrl(WebArConfig.WEB_AR_URL)
+                    val initialSessionId = UUID.randomUUID().toString()
+                    expectedDocumentSessionId = initialSessionId
+                    activeDocumentSessionId = null
+                    loadUrl(webArDocumentUrl(initialSessionId))
                 }
             }
         )
@@ -340,8 +601,22 @@ fun WebArScreen(
                         )
                     }
                 }
-                if (uiState.errorMessage != null && uiState.activeMarkerId != null) {
-                    Button(onClick = onRetry) { Text("Reintentar") }
+                if (uiState.errorMessage != null &&
+                    (uiState.requiresCameraRestart ||
+                        uiState.activeMarkerId != null ||
+                        uiState.activeWordTarget != null)
+                ) {
+                    Button(
+                        onClick = {
+                            if (uiState.requiresCameraRestart) {
+                                reloadExperienceDocument(true)
+                            } else {
+                                onRetry()
+                            }
+                        }
+                    ) {
+                        Text("Reintentar")
+                    }
                 }
             }
         }
@@ -377,10 +652,32 @@ private fun WebArCommand.toJson(): JSONObject = when (this) {
     is WebArCommand.AssetReady -> JSONObject()
         .put("type", "asset-ready")
         .put("asset", asset.toJson())
+        .apply {
+            wordTarget?.let { target ->
+                put(
+                    "target",
+                    JSONObject()
+                        .put("type", "word")
+                        .put("centerX", target.centerX)
+                        .put("centerY", target.centerY)
+                )
+            }
+        }
 
     is WebArCommand.MarkerNotFound -> JSONObject()
         .put("type", "marker-not-found")
         .put("markerId", markerId)
+
+    is WebArCommand.WordNotFound -> JSONObject()
+        .put("type", "word-not-found")
+        .put("word", target.word)
+        .put(
+            "target",
+            JSONObject()
+                .put("type", "word")
+                .put("centerX", target.centerX)
+                .put("centerY", target.centerY)
+        )
 
     is WebArCommand.AssetError -> JSONObject()
         .put("type", "asset-error")
@@ -390,6 +687,16 @@ private fun WebArCommand.toJson(): JSONObject = when (this) {
     is WebArCommand.ClearMarker -> JSONObject()
         .put("type", "clear-marker")
         .put("markerId", markerId)
+
+    is WebArCommand.ActivateWordTarget -> JSONObject()
+        .put("type", "activate-word-target")
+        .put("word", target.word)
+        .put("centerX", target.centerX)
+        .put("centerY", target.centerY)
+
+    is WebArCommand.ClearWordTarget -> JSONObject()
+        .put("type", "clear-word-target")
+        .apply { word?.let { put("word", it) } }
 
     WebArCommand.CameraPermissionDenied -> JSONObject()
         .put("type", "camera-permission-denied")
@@ -405,3 +712,82 @@ private fun ArAsset.toJson(): JSONObject = JSONObject()
         audioUrl?.let { put("audioUrl", it) }
         accessibilityLabel?.let { put("accessibilityLabel", it) }
     }
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+/** Keeps pause/resume intent separate from readiness reported by the current document. */
+internal class WebArResumeCoordinator {
+    private var restartOnResume = false
+
+    fun onPause(wasCameraReady: Boolean) {
+        restartOnResume = wasCameraReady
+    }
+
+    fun requestRestart() {
+        restartOnResume = true
+    }
+
+    fun cancelRestart() {
+        restartOnResume = false
+    }
+
+    fun consumeRestartOnResume(): Boolean = restartOnResume.also {
+        restartOnResume = false
+    }
+}
+
+/** Arbitrates the JS callback and timeout so a document generation loads at most once. */
+internal class WebArReloadGate(private val generation: Long) {
+    private var acquired = false
+
+    fun tryAcquire(currentGeneration: Long, isCurrentWebView: Boolean): Boolean {
+        if (acquired || generation != currentGeneration || !isCurrentWebView) return false
+        acquired = true
+        return true
+    }
+}
+
+internal fun shouldProcessWebArBridgeEvent(
+    type: String,
+    messageSessionId: String?,
+    activeSessionId: String?,
+    acceptsSessionEvents: Boolean,
+    isDocumentReloading: Boolean,
+    isLifecycleResumed: Boolean
+): Boolean {
+    if (messageSessionId == null ||
+        messageSessionId != activeSessionId ||
+        isDocumentReloading
+    ) {
+        return false
+    }
+    return when (type) {
+        // A current document may finish camera initialization while a transient overlay is open.
+        "camera-ready" -> acceptsSessionEvents
+        // Explicit recovery remains available after a runtime error invalidates normal events.
+        "camera-retry-requested" -> isLifecycleResumed
+        else -> acceptsSessionEvents && isLifecycleResumed
+    }
+}
+
+private fun webArDocumentUrl(sessionId: String): String =
+    Uri.parse(WebArConfig.WEB_AR_URL)
+        .buildUpon()
+        .appendQueryParameter(WEB_AR_SESSION_QUERY, sessionId)
+        .build()
+        .toString()
+
+private fun String?.webArDocumentSessionId(): String? {
+    val uri = this?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return null
+    val configuredUri = Uri.parse(WebArConfig.WEB_AR_URL)
+    if (!uri.isTrustedWebArOrigin() || uri.path != configuredUri.path) return null
+    return uri.getQueryParameter(WEB_AR_SESSION_QUERY)?.takeIf(String::isNotBlank)
+}
+
+private const val WEB_AR_LOG_TAG = "WebArOcr"
+private const val WEB_AR_RELOAD_FALLBACK_MS = 750L
+private const val WEB_AR_SESSION_QUERY = "nativeSession"

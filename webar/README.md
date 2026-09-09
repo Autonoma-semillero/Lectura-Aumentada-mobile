@@ -11,10 +11,51 @@ AR.js 3.4.8, se genera dentro de `app/src/main/assets/webar` y se carga mediante
 - `native-bridge.js`: contrato de mensajes con Android y validación de activos.
 - `model-controller.js`: ciclo de vida del GLB y liberación de GPU.
 - `audio-controller.js`: reproducción, repetición accesible, volumen y exclusión mutua.
+- `word-target.js`: normalización, deduplicación y correlación de objetivos OCR.
 - Kotlin: autenticación, consulta de API, caché de sesión y entrega del DTO saneado.
 
-El JWT permanece en la capa Kotlin. El contenido web solamente envía un
-`markerId` y recibe las URLs HTTPS autorizadas del modelo y del audio.
+El JWT permanece en la capa Kotlin. El contenido web solamente emite el estado
+de cámara y los `markerId`; recibe objetivos OCR y las URLs HTTPS autorizadas
+del modelo y del audio.
+
+## Contrato de objetivos por palabra
+
+Android activa la palabra reconocida con
+`{"type":"activate-word-target","word":"Árbol","centerX":0.48,"centerY":0.61}` y la retira con
+`{"type":"clear-word-target","word":"Árbol"}`. El campo `word` de limpieza
+es opcional; cuando está presente, WebAR ignora limpiezas obsoletas que no
+coincidan con el objetivo actual. La comparación ignora mayúsculas, acentos y
+espacios repetidos, pero conserva `ñ` como una letra distinta de `n`.
+`centerX` y `centerY` son opcionales, normalizados entre 0 y
+1, se limitan a ese intervalo y se usa 0.5 cuando faltan. Observaciones sucesivas
+de la misma palabra actualizan la posición sin descargar el modelo. El GLB queda
+ligeramente por encima del centro detectado para no tapar la palabra que el OCR
+necesita seguir viendo.
+
+Después de activar el objetivo, Android entrega el mismo mensaje `asset-ready`
+existente. WebAR lo correlaciona por `asset.word` y monta el GLB en un root fijo
+frente a la cámara, sin exigir Hiro o Kanji. Cuando no hay una palabra activa,
+`asset-ready` conserva la correlación por `asset.markerId` de los marcadores.
+Para activar y entregar sin una carrera entre comandos, se admite el formato
+atómico `{"type":"asset-ready","asset":{...},"target":{"type":"word","centerX":0.48,"centerY":0.61}}`;
+en él la palabra se toma de `asset.word`.
+Si la consulta no encuentra una asociación, Android envía
+`{"type":"word-not-found","word":"Árbol","target":{"type":"word","centerX":0.48,"centerY":0.61}}`.
+La metadata activa y posiciona el objetivo de forma atómica; si se omite, WebAR
+solo aplica la respuesta cuando todavía coincide con la palabra activa, para
+descartar resultados atrasados.
+
+WebAR emite `{"type":"camera-ready"}` hacia Android una vez que AR.js confirma
+la cámara. Antes de emitirlo oculta su panel de diagnóstico para que PixelCopy no
+lo entregue al OCR; lo restaura al detenerse o mostrar un error. El host debe
+iniciar el reconocimiento OCR después de ese evento.
+
+Cuando A-Frame termina de cargar el GLB, WebAR emite `{"type":"model-ready"}`.
+Si falla, emite `{"type":"model-error","message":"..."}` sin cerrar la cámara
+ni detener el OCR, de modo que el panel nativo pueda mostrar el resultado.
+El botón de reintento de la tarjeta de error emite
+`{"type":"camera-retry-requested"}`; Android desmonta y recarga el documento
+antes de volver a activar la cámara, evitando reutilizar una sesión AR.js dañada.
 
 ## Desarrollo
 
