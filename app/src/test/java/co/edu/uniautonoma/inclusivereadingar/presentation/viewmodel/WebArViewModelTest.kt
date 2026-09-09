@@ -136,6 +136,44 @@ class WebArViewModelTest {
     }
 
     @Test
+    fun fuzzyWordAsset_keepsTheOcrTargetAcrossPositionUpdates() = runTest {
+        val repository = FakeArAssetRepository(
+            results = emptyMap(),
+            wordResults = mapOf("pato" to gatoAsset)
+        )
+        val viewModel = WebArViewModel(repository)
+        val detectedTarget = WebArWordTarget("pato", 0.91f, 0.42f, 0.55f)
+
+        viewModel.onOcrWordDetected(
+            detectedTarget.word,
+            detectedTarget.confidence,
+            detectedTarget.centerX,
+            detectedTarget.centerY
+        )
+        advanceUntilIdle()
+
+        assertThat(repository.wordRequests).containsExactly("pato")
+        assertThat(viewModel.uiState.value.asset?.word).isEqualTo("gato")
+        assertThat(viewModel.uiState.value.outboundCommand?.command)
+            .isEqualTo(WebArCommand.AssetReady(gatoAsset, detectedTarget))
+
+        viewModel.onModelReady(gatoAsset.id)
+        val movedTarget = WebArWordTarget("pato", 0.93f, 0.57f, 0.61f)
+        viewModel.onOcrWordPositionUpdated(
+            movedTarget.word,
+            movedTarget.confidence,
+            movedTarget.centerX,
+            movedTarget.centerY
+        )
+
+        assertThat(repository.wordRequests).containsExactly("pato")
+        assertThat(viewModel.uiState.value.asset).isEqualTo(gatoAsset)
+        assertThat(viewModel.uiState.value.activeWordTarget).isEqualTo(movedTarget)
+        assertThat(viewModel.uiState.value.outboundCommand?.command)
+            .isEqualTo(WebArCommand.ActivateWordTarget(movedTarget))
+    }
+
+    @Test
     fun lowConfidenceOcrWord_isIgnored() = runTest {
         val repository = FakeArAssetRepository(results = emptyMap())
         val viewModel = WebArViewModel(repository)

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-test("atomically activates a word asset and ignores stale marker responses", async (context) => {
+test("keeps a fuzzy asset on its explicit OCR target while the word moves", async (context) => {
   const previousWindow = globalThis.window;
   const previousDocument = globalThis.document;
   const previousAudio = globalThis.Audio;
@@ -29,11 +29,19 @@ test("atomically activates a word asset and ignores stale marker responses", asy
   };
 
   class FakeAudio {
+    constructor() {
+      this.src = "";
+      this.playCount = 0;
+      FakeAudio.instance = this;
+    }
     addEventListener() {}
     pause() {}
-    removeAttribute() {}
+    removeAttribute(name) { if (name === "src") this.src = ""; }
     load() {}
-    play() { return Promise.resolve(); }
+    play() {
+      this.playCount += 1;
+      return Promise.resolve();
+    }
   }
 
   globalThis.window = {
@@ -71,35 +79,78 @@ test("atomically activates a word asset and ignores stale marker responses", asy
 
   window.WebAR.receiveNativeMessage({
     type: "asset-ready",
-    target: { type: "word", centerX: 0.4, centerY: 0.6 },
+    target: { type: "word", word: "pato", centerX: 0.4, centerY: 0.6 },
     asset: {
       id: "asset-1",
       learningUnitId: "unit-1",
       markerId: "demo-animales-gato",
-      word: "Árbol",
-      model3dUrl: "https://cdn.example.test/arbol.glb",
+      word: "gato",
+      model3dUrl: "https://cdn.example.test/gato.glb",
+      audioUrl: "https://cdn.example.test/gato.mp3",
     },
   });
 
-  assert.equal(elementFor("#marker-state").textContent, "palabra: Árbol");
-  assert.equal(elementFor("#main-status").textContent, "Mostrando Árbol");
+  assert.equal(elementFor("#marker-state").textContent, "palabra: pato");
+  assert.equal(elementFor("#main-status").textContent, "Mostrando gato");
+  assert.equal(elementFor("#model-state").textContent, "sin modelo");
+  assert.equal(FakeAudio.instance.src, "https://cdn.example.test/gato.mp3");
+  assert.equal(FakeAudio.instance.playCount, 1);
+
+  window.WebAR.receiveNativeMessage({
+    type: "word-not-found",
+    word: "casa",
+    target: { type: "word", word: "casa", centerX: 0.15, centerY: 0.2 },
+  });
+
+  assert.equal(elementFor("#marker-state").textContent, "palabra: pato");
+  assert.equal(elementFor("#main-status").textContent, "Mostrando gato");
+  assert.equal(FakeAudio.instance.src, "https://cdn.example.test/gato.mp3");
+  assert.equal(FakeAudio.instance.playCount, 1);
+
+  window.WebAR.receiveNativeMessage({
+    type: "asset-ready",
+    target: { type: "word", word: "casa", centerX: 0.2, centerY: 0.3 },
+    asset: {
+      id: "asset-stale",
+      learningUnitId: "unit-stale",
+      markerId: "demo-casa",
+      word: "casa",
+      model3dUrl: "https://cdn.example.test/casa.glb",
+      audioUrl: "https://cdn.example.test/casa.mp3",
+    },
+  });
+
+  assert.equal(elementFor("#marker-state").textContent, "palabra: pato");
+  assert.equal(elementFor("#main-status").textContent, "Mostrando gato");
+  assert.equal(elementFor("#model-state").textContent, "sin modelo");
+  assert.equal(FakeAudio.instance.src, "https://cdn.example.test/gato.mp3");
+  assert.equal(FakeAudio.instance.playCount, 1);
+
+  window.WebAR.receiveNativeMessage({
+    type: "activate-word-target",
+    word: "pato",
+    centerX: 0.58,
+    centerY: 0.63,
+  });
+  assert.equal(elementFor("#marker-state").textContent, "palabra: pato");
+  assert.equal(elementFor("#model-state").textContent, "sin modelo");
 
   window.WebAR.receiveNativeMessage({
     type: "marker-not-found",
     markerId: "demo-animales-gato",
   });
-  assert.equal(elementFor("#main-status").textContent, "Mostrando Árbol");
+  assert.equal(elementFor("#marker-state").textContent, "palabra: pato");
 
   window.WebAR.receiveNativeMessage({ type: "word-not-found", word: "casa" });
-  assert.equal(elementFor("#main-status").textContent, "Mostrando Árbol");
+  assert.equal(elementFor("#marker-state").textContent, "palabra: pato");
 
-  window.WebAR.receiveNativeMessage({ type: "word-not-found", word: "arbol" });
+  window.WebAR.receiveNativeMessage({ type: "word-not-found", word: "pato" });
   assert.equal(
     elementFor("#main-status").textContent,
     "La palabra no tiene contenido asociado"
   );
 
-  window.WebAR.receiveNativeMessage({ type: "clear-word-target", word: "arbol" });
+  window.WebAR.receiveNativeMessage({ type: "clear-word-target", word: "pato" });
   window.WebAR.receiveNativeMessage({
     type: "word-not-found",
     word: "Casa",

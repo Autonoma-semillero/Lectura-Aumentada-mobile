@@ -85,6 +85,11 @@ incluido en `app/src/main/assets/models/animals`. La URL almacenada en MongoDB
 apunta al origen seguro local de `WebViewAssetLoader`, por lo que el modelo no
 depende de una descarga de red durante la experiencia AR.
 
+La pronunciación de `gato` también se incluye en
+`app/src/main/assets/audio/animals/gato.mp3` y se sirve desde el mismo origen
+seguro. Su procedencia, formato y huella reproducible están documentados en el
+`README.md` ubicado junto al archivo.
+
 ## Verificación manual
 
 1. Configura `backendBaseUrl` en `local.properties` y levanta el backend con una

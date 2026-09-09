@@ -2,6 +2,7 @@ package co.edu.uniautonoma.inclusivereadingar.data.remote
 
 import android.net.Uri
 import co.edu.uniautonoma.inclusivereadingar.domain.model.ArAsset
+import co.edu.uniautonoma.inclusivereadingar.domain.ocr.OcrWordMatchPolicy
 import co.edu.uniautonoma.inclusivereadingar.domain.ocr.OcrWordNormalizer
 import org.json.JSONObject
 
@@ -35,8 +36,8 @@ class HttpArAssetsApi(
             path = "/assets/word/${Uri.encode(normalizedWord)}",
             accessToken = accessToken
         ) ?: return null
-        require(OcrWordNormalizer.normalize(asset.word) == normalizedWord) {
-            "Word response does not match the request"
+        require(OcrWordMatchPolicy.acceptsAssetResponse(normalizedWord, asset.word)) {
+            "Word response does not match the OCR request"
         }
         return asset
     }

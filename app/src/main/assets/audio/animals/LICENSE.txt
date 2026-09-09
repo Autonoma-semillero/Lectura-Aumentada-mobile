@@ -1,0 +1,12 @@
+gato.mp3
+
+Derived from "LL-Q1321 (spa)-Millars-gato.wav" by Millars
+(author, speaker and recorder), contributed through Lingua Libre:
+https://commons.wikimedia.org/wiki/File:LL-Q1321_(spa)-Millars-gato.wav
+
+Licensed under Creative Commons Attribution-ShareAlike 4.0 International:
+https://creativecommons.org/licenses/by-sa/4.0/
+
+Change made: the original WAV recording was converted to MP3 for Android
+distribution. This derivative is distributed under the same CC BY-SA 4.0
+license.

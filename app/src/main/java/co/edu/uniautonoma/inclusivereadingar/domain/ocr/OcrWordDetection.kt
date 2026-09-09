@@ -62,6 +62,43 @@ object OcrWordNormalizer {
     private val SPANISH_COLOMBIA = Locale.forLanguageTag("es-CO")
 }
 
+/** Mirrors the backend's conservative OCR-to-asset response contract. */
+object OcrWordMatchPolicy {
+    const val MIN_FUZZY_WORD_LENGTH = 3
+
+    fun acceptsAssetResponse(requestedWord: String, assetWord: String): Boolean {
+        val requested = OcrWordNormalizer.normalize(requestedWord) ?: return false
+        val candidate = OcrWordNormalizer.normalize(assetWord) ?: return false
+        if (requested == candidate) return true
+
+        val requestedCharacters = requested.codePoints().toArray()
+        val candidateCharacters = candidate.codePoints().toArray()
+        if (requestedCharacters.size < MIN_FUZZY_WORD_LENGTH ||
+            candidateCharacters.size < MIN_FUZZY_WORD_LENGTH
+        ) {
+            return false
+        }
+        return levenshteinDistance(requestedCharacters, candidateCharacters) == 1
+    }
+
+    private fun levenshteinDistance(left: IntArray, right: IntArray): Int {
+        var previousRow = IntArray(right.size + 1) { it }
+        for (leftIndex in left.indices) {
+            val currentRow = IntArray(right.size + 1)
+            currentRow[0] = leftIndex + 1
+            for (rightIndex in right.indices) {
+                val insertion = currentRow[rightIndex] + 1
+                val deletion = previousRow[rightIndex + 1] + 1
+                val substitution = previousRow[rightIndex] +
+                    if (left[leftIndex] == right[rightIndex]) 0 else 1
+                currentRow[rightIndex + 1] = minOf(insertion, deletion, substitution)
+            }
+            previousRow = currentRow
+        }
+        return previousRow[right.size]
+    }
+}
+
 /**
  * Requires the same sufficiently-confident word in consecutive frames and applies loss grace.
  * This prevents OCR noise from causing requests or model flicker on every camera frame.

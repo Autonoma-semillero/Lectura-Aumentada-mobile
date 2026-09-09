@@ -70,6 +70,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArCommand
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArUiState
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArViewModelFactory
+import co.edu.uniautonoma.inclusivereadingar.presentation.viewmodel.WebArWordTarget
 import co.edu.uniautonoma.inclusivereadingar.presentation.webar.WebArOcrPipeline
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -654,13 +655,7 @@ private fun WebArCommand.toJson(): JSONObject = when (this) {
         .put("asset", asset.toJson())
         .apply {
             wordTarget?.let { target ->
-                put(
-                    "target",
-                    JSONObject()
-                        .put("type", "word")
-                        .put("centerX", target.centerX)
-                        .put("centerY", target.centerY)
-                )
+                put("target", JSONObject(target.toNativeTargetFields()))
             }
         }
 
@@ -712,6 +707,13 @@ private fun ArAsset.toJson(): JSONObject = JSONObject()
         audioUrl?.let { put("audioUrl", it) }
         accessibilityLabel?.let { put("accessibilityLabel", it) }
     }
+
+internal fun WebArWordTarget.toNativeTargetFields(): Map<String, Any> = mapOf(
+    "type" to "word",
+    "word" to word,
+    "centerX" to centerX,
+    "centerY" to centerY
+)
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this

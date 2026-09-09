@@ -70,9 +70,17 @@ export class WordTargetGate {
   }
 }
 
-export function resolveAssetTarget({ asset, activeWordTarget, activeMarkerId }) {
+export function resolveAssetTarget({
+  asset,
+  activeWordTarget,
+  activeMarkerId,
+  targetWord,
+}) {
   if (activeWordTarget) {
-    return normalizeWord(asset?.word) === activeWordTarget.normalizedWord
+    const correlatedWord = targetWord === undefined
+      ? normalizeWord(asset?.word)
+      : normalizeWord(targetWord);
+    return correlatedWord === activeWordTarget.normalizedWord
       ? WORD_TARGET_MODEL_ID
       : null;
   }

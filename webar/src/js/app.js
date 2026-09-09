@@ -77,7 +77,7 @@ async function activateCamera() {
   elements.activate.disabled = true;
   elements.retry.disabled = true;
   try {
-    await audioController.unlock();
+    await audioController.unlock().catch(() => false);
     const capabilities = await cameraController.capabilities();
     setText(elements.webxrState, capabilities.webxr ? "compatible" : "modo marcador");
     if (!capabilities.camera) throw new Error("Este dispositivo no ofrece una cámara web compatible.");
@@ -132,14 +132,21 @@ function receiveNativeMessage(rawMessage) {
         const atomicWordTarget = message.target?.type === "word"
           ? message.target
           : message.wordTarget;
+        const explicitTargetWord = typeof atomicWordTarget?.word === "string"
+          ? atomicWordTarget.word
+          : undefined;
         if (atomicWordTarget) {
           if (detectionController.gate.activeMarkerId) return;
-          activateWordTarget(atomicWordTarget.word || asset.word, atomicWordTarget);
+          const requestedTargetWord = explicitTargetWord ?? asset.word;
+          if (wordTargetGate.activeTarget && !wordTargetGate.matches(requestedTargetWord)) return;
+          // Older hosts omitted target.word and only supported exact asset.word matching.
+          activateWordTarget(requestedTargetWord, atomicWordTarget);
         }
         const targetId = resolveAssetTarget({
           asset,
           activeWordTarget: wordTargetGate.activeTarget,
           activeMarkerId: detectionController.gate.activeMarkerId,
+          targetWord: explicitTargetWord,
         });
         if (!targetId) return;
         const isWordTarget = targetId === WORD_TARGET_MODEL_ID;
@@ -173,7 +180,8 @@ function receiveNativeMessage(rawMessage) {
         if (message.target?.type === "word" || message.wordTarget) {
           if (detectionController.gate.activeMarkerId) return;
           const target = message.target?.type === "word" ? message.target : message.wordTarget;
-          activateWordTarget(target.word || message.word, target);
+          if (wordTargetGate.activeTarget && !wordTargetGate.matches(message.word)) return;
+          activateWordTarget(message.word, target);
         }
         if (!wordTargetGate.matches(message.word)) return;
         clearContent("word", wordTargetGate.activeTarget.normalizedWord);

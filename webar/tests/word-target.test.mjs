@@ -68,6 +68,40 @@ test("routes assets to the camera root while a matching word is active", () => {
   }), null);
 });
 
+test("correlates a fuzzy asset with its explicit OCR target word", () => {
+  const asset = { markerId: "demo-animales-gato", word: "gato" };
+  const activeWordTarget = { normalizedWord: "pato" };
+
+  assert.equal(resolveAssetTarget({
+    asset,
+    activeWordTarget,
+    activeMarkerId: null,
+    targetWord: "pato",
+  }), WORD_TARGET_MODEL_ID);
+});
+
+test("rejects a stale explicit OCR target word", () => {
+  assert.equal(resolveAssetTarget({
+    asset: { markerId: "demo-animales-gato", word: "gato" },
+    activeWordTarget: { normalizedWord: "pato" },
+    activeMarkerId: null,
+    targetWord: "casa",
+  }), null);
+});
+
+test("keeps the legacy exact-word fallback when no explicit target is present", () => {
+  assert.equal(resolveAssetTarget({
+    asset: { markerId: "demo-animales-gato", word: "gato" },
+    activeWordTarget: { normalizedWord: "pato" },
+    activeMarkerId: null,
+  }), null);
+  assert.equal(resolveAssetTarget({
+    asset: { markerId: "demo-animales-gato", word: "GATO" },
+    activeWordTarget: { normalizedWord: "gato" },
+    activeMarkerId: null,
+  }), WORD_TARGET_MODEL_ID);
+});
+
 test("keeps marker routing when no word target is active", () => {
   assert.equal(resolveAssetTarget({
     asset: { markerId: "demo-animales-gato", word: "gato" },
