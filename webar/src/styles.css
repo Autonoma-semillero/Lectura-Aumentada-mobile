@@ -14,9 +14,9 @@
 html,
 body,
 #experience {
-  width: 100%;
+  width: 100% !important;
   height: 100%;
-  margin: 0;
+  margin: 0 !important;
   overflow: hidden;
   background: #05070a;
 }
@@ -32,13 +32,20 @@ body,
 #ar-root > video {
   position: absolute !important;
   inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
   z-index: 0 !important;
   display: block !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  transform: none !important;
 }
 
 #ar-root > a-scene {
   position: absolute !important;
-  inset: 0;
+  inset: 0 !important;
+  margin: 0 !important;
   z-index: 1;
   width: 100% !important;
   height: 100% !important;
@@ -48,8 +55,10 @@ body,
 #ar-root video,
 #ar-root canvas,
 #ar-root .a-canvas {
+  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
+  margin: 0 !important;
   object-fit: cover !important;
   background: transparent !important;
 }
