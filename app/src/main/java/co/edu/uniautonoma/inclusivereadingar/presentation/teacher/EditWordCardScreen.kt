@@ -100,6 +100,8 @@ fun EditWordCardRoute(
         backendBaseUrl = backendBaseUrl,
         onBack = onBack,
         onWordChange = viewModel::updateWord,
+        onSelectArModel = viewModel::selectArModel,
+        onSelectMarker = viewModel::selectMarker,
         onAudioUrlChange = viewModel::updateAudioUrl,
         onAudioFileSelected = viewModel::selectAudioFile,
         onRecordedAudioSelected = viewModel::selectRecordedAudio,
@@ -117,6 +119,8 @@ fun EditWordCardScreen(
     backendBaseUrl: String,
     onBack: () -> Unit,
     onWordChange: (String) -> Unit,
+    onSelectArModel: (String) -> Unit,
+    onSelectMarker: (String) -> Unit,
     onAudioUrlChange: (String) -> Unit,
     onAudioFileSelected: (LocalAudioSelection) -> Unit,
     onRecordedAudioSelected: (LocalAudioSelection) -> Unit,
@@ -233,6 +237,15 @@ fun EditWordCardScreen(
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White
                     )
+                )
+
+                ArAssociationSection(
+                    models = uiState.arModels,
+                    selectedModelId = uiState.selectedArModelId,
+                    selectedMarkerId = uiState.selectedMarkerId,
+                    onSelectModel = onSelectArModel,
+                    onSelectMarker = onSelectMarker,
+                    enabled = !uiState.isSaving
                 )
 
                 Text(text = "Audio de pronunciación", fontWeight = FontWeight.Bold)
@@ -380,6 +393,12 @@ fun EditWordCardScreen(
                         Text(text = "Estado", fontWeight = FontWeight.Bold)
                         EditStatusRow(label = "Palabra escrita", done = uiState.word.isNotBlank())
                         EditStatusRow(label = "Audio listo", done = uiState.hasAudio)
+                        if (uiState.selectedArModelId != null) {
+                            EditStatusRow(
+                                label = "Modelo y marcador AR",
+                                done = uiState.hasArAssociation
+                            )
+                        }
                     }
                 }
 

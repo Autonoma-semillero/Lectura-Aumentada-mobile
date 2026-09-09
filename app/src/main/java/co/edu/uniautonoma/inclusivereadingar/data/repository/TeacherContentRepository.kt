@@ -3,6 +3,7 @@ package co.edu.uniautonoma.inclusivereadingar.data.repository
 import co.edu.uniautonoma.inclusivereadingar.data.local.SessionStore
 import co.edu.uniautonoma.inclusivereadingar.data.remote.TeacherApi
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
+import co.edu.uniautonoma.inclusivereadingar.domain.model.ArModelOption
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AudioUploadInput
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AuthSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.Category
@@ -32,14 +33,26 @@ interface TeacherContentDataSource {
     suspend fun getStudents(): List<AppUser>
     suspend fun getWordCardsForCategory(categoryId: String): List<WordCard>
     suspend fun getWordCardById(id: String): WordCard
+    suspend fun getArModels(): List<ArModelOption>
     suspend fun createWordCard(
         studentId: String,
         word: String,
         categoryId: String,
-        audioUrl: String?
+        audioUrl: String?,
+        learningUnitId: String?
     ): WordCard
 
-    suspend fun updateWordCard(id: String, word: String, audioUrl: String?): WordCard
+    suspend fun updateWordCard(
+        id: String,
+        word: String,
+        audioUrl: String?,
+        learningUnitId: String?
+    ): WordCard
+    suspend fun associateArContent(
+        learningUnitId: String,
+        markerId: String,
+        model3dUrl: String
+    ): ArModelOption
     suspend fun archiveWordCard(id: String)
     suspend fun uploadAudio(input: AudioUploadInput): UploadedAudio
 }
@@ -113,11 +126,17 @@ class TeacherContentRepository(
         return teacherApi.getWordCardById(id, session.accessToken)
     }
 
+    override suspend fun getArModels(): List<ArModelOption> {
+        val session = requireSession()
+        return teacherApi.getArModels(session.accessToken)
+    }
+
     override suspend fun createWordCard(
         studentId: String,
         word: String,
         categoryId: String,
-        audioUrl: String?
+        audioUrl: String?,
+        learningUnitId: String?
     ): WordCard {
         val session = requireSession()
         return teacherApi.createWordCard(
@@ -125,13 +144,39 @@ class TeacherContentRepository(
             word = word,
             categoryId = categoryId,
             audioUrl = audioUrl,
+            learningUnitId = learningUnitId,
             accessToken = session.accessToken
         )
     }
 
-    override suspend fun updateWordCard(id: String, word: String, audioUrl: String?): WordCard {
+    override suspend fun updateWordCard(
+        id: String,
+        word: String,
+        audioUrl: String?,
+        learningUnitId: String?
+    ): WordCard {
         val session = requireSession()
-        return teacherApi.updateWordCard(id, word, audioUrl, session.accessToken)
+        return teacherApi.updateWordCard(
+            id = id,
+            word = word,
+            audioUrl = audioUrl,
+            learningUnitId = learningUnitId,
+            accessToken = session.accessToken
+        )
+    }
+
+    override suspend fun associateArContent(
+        learningUnitId: String,
+        markerId: String,
+        model3dUrl: String
+    ): ArModelOption {
+        val session = requireSession()
+        return teacherApi.associateArContent(
+            learningUnitId = learningUnitId,
+            markerId = markerId,
+            model3dUrl = model3dUrl,
+            accessToken = session.accessToken
+        )
     }
 
     override suspend fun archiveWordCard(id: String) {

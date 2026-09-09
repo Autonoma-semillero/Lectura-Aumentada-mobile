@@ -1,6 +1,7 @@
 package co.edu.uniautonoma.inclusivereadingar.data.remote
 
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
+import co.edu.uniautonoma.inclusivereadingar.domain.model.ArModelOption
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AudioUploadInput
 import co.edu.uniautonoma.inclusivereadingar.domain.model.Category
 import co.edu.uniautonoma.inclusivereadingar.domain.model.UploadedAudio
@@ -33,11 +34,13 @@ interface TeacherApi {
     suspend fun getUsers(accessToken: String?): List<AppUser>
     suspend fun getWordCardsForCategory(categoryId: String, accessToken: String?): List<WordCard>
     suspend fun getWordCardById(id: String, accessToken: String?): WordCard
+    suspend fun getArModels(accessToken: String?): List<ArModelOption>
     suspend fun createWordCard(
         studentId: String,
         word: String,
         categoryId: String,
         audioUrl: String?,
+        learningUnitId: String?,
         accessToken: String?
     ): WordCard
 
@@ -45,8 +48,16 @@ interface TeacherApi {
         id: String,
         word: String,
         audioUrl: String?,
+        learningUnitId: String?,
         accessToken: String?
     ): WordCard
+
+    suspend fun associateArContent(
+        learningUnitId: String,
+        markerId: String,
+        model3dUrl: String,
+        accessToken: String?
+    ): ArModelOption
 
     suspend fun archiveWordCard(id: String, accessToken: String?)
     suspend fun uploadAudio(
@@ -152,11 +163,22 @@ class HttpTeacherApi(
         )
     }
 
+    override suspend fun getArModels(accessToken: String?): List<ArModelOption> {
+        val response = httpClient.get(path = "/assets/models", accessToken = accessToken)
+        val json = JSONArray(response)
+        return buildList {
+            for (index in 0 until json.length()) {
+                add(parseArModel(json.getJSONObject(index)))
+            }
+        }
+    }
+
     override suspend fun createWordCard(
         studentId: String,
         word: String,
         categoryId: String,
         audioUrl: String?,
+        learningUnitId: String?,
         accessToken: String?
     ): WordCard {
         val body = JSONObject()
@@ -164,6 +186,7 @@ class HttpTeacherApi(
             .put("word", word)
             .put("category_id", categoryId)
         audioUrl?.let { body.put("audio_url", it) }
+        learningUnitId?.let { body.put("learning_unit_id", it) }
 
         return parseWordCard(
             httpClient.post(
@@ -178,16 +201,39 @@ class HttpTeacherApi(
         id: String,
         word: String,
         audioUrl: String?,
+        learningUnitId: String?,
         accessToken: String?
     ): WordCard {
         val body = JSONObject().put("word", word)
         audioUrl?.let { body.put("audio_url", it) }
+        learningUnitId?.let { body.put("learning_unit_id", it) }
         return parseWordCard(
             httpClient.requestRaw(
                 method = "PATCH",
                 path = "/word-cards/$id",
                 body = body,
                 accessToken = accessToken
+            )
+        )
+    }
+
+    override suspend fun associateArContent(
+        learningUnitId: String,
+        markerId: String,
+        model3dUrl: String,
+        accessToken: String?
+    ): ArModelOption {
+        val body = JSONObject()
+            .put("learning_unit_id", learningUnitId)
+            .put("marker_id", markerId)
+            .put("model_3d", model3dUrl)
+        return parseArModel(
+            JSONObject(
+                httpClient.post(
+                    path = "/assets",
+                    body = body,
+                    accessToken = accessToken
+                )
             )
         )
     }
@@ -287,4 +333,11 @@ class HttpTeacherApi(
             timesAudioPlayed = item.optInt("times_audio_played", -1).takeIf { it >= 0 }
         )
     }
+
+    private fun parseArModel(item: JSONObject): ArModelOption = ArModelOption(
+        learningUnitId = item.getString("learning_unit_id"),
+        markerId = item.getString("marker_id"),
+        word = item.getString("word"),
+        model3dUrl = item.getString("model_3d")
+    )
 }

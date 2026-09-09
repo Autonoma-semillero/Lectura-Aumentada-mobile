@@ -130,6 +130,8 @@ fun CreateWordCardRoute(
         onSelectStudent = viewModel::selectStudent,
         onWordChange = viewModel::updateWord,
         onSelectCategory = viewModel::selectCategory,
+        onSelectArModel = viewModel::selectArModel,
+        onSelectMarker = viewModel::selectMarker,
         onAudioUrlChange = viewModel::updateAudioUrl,
         onAudioFileSelected = viewModel::selectAudioFile,
         onRecordedAudioSelected = viewModel::selectRecordedAudio,
@@ -149,6 +151,8 @@ fun CreateWordCardScreen(
     onSelectStudent: (String) -> Unit,
     onWordChange: (String) -> Unit,
     onSelectCategory: (String) -> Unit,
+    onSelectArModel: (String) -> Unit,
+    onSelectMarker: (String) -> Unit,
     onAudioUrlChange: (String) -> Unit,
     onAudioFileSelected: (LocalAudioSelection) -> Unit,
     onRecordedAudioSelected: (LocalAudioSelection) -> Unit,
@@ -240,7 +244,10 @@ fun CreateWordCardScreen(
             Box(modifier = Modifier.size(48.dp))
         }
 
-        if (uiState.isLoadingStudents || uiState.isLoadingCategories) {
+        if (uiState.isLoadingStudents ||
+            uiState.isLoadingCategories ||
+            uiState.isLoadingArModels
+        ) {
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -342,6 +349,15 @@ fun CreateWordCardScreen(
                         }
                     }
                 }
+
+                ArAssociationSection(
+                    models = uiState.arModels,
+                    selectedModelId = uiState.selectedArModelId,
+                    selectedMarkerId = uiState.selectedMarkerId,
+                    onSelectModel = onSelectArModel,
+                    onSelectMarker = onSelectMarker,
+                    enabled = !uiState.isSaving
+                )
 
                 OutlinedTextField(
                     value = uiState.audioUrlInput,
@@ -533,6 +549,12 @@ fun CreateWordCardScreen(
                             label = "Audio listo",
                             done = uiState.hasAudio
                         )
+                        if (uiState.selectedArModelId != null) {
+                            StatusRow(
+                                label = "Modelo y marcador AR",
+                                done = uiState.hasArAssociation
+                            )
+                        }
                     }
                 }
 

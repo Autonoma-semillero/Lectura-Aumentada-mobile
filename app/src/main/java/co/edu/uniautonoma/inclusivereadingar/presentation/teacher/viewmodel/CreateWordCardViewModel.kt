@@ -6,10 +6,12 @@ import androidx.lifecycle.viewModelScope
 import co.edu.uniautonoma.inclusivereadingar.data.remote.BackendException
 import co.edu.uniautonoma.inclusivereadingar.data.repository.TeacherContentDataSource
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
+import co.edu.uniautonoma.inclusivereadingar.domain.model.ArModelOption
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AudioUploadInput
 import co.edu.uniautonoma.inclusivereadingar.domain.model.Category
+import co.edu.uniautonoma.inclusivereadingar.domain.model.SUPPORTED_AR_MARKERS
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,12 +34,16 @@ sealed interface TeacherAudioSource {
 data class CreateWordCardUiState(
     val isLoadingStudents: Boolean = true,
     val isLoadingCategories: Boolean = true,
+    val isLoadingArModels: Boolean = true,
     val isSaving: Boolean = false,
     val students: List<AppUser> = emptyList(),
     val categories: List<Category> = emptyList(),
+    val arModels: List<ArModelOption> = emptyList(),
     val selectedStudentId: String? = null,
     val word: String = "",
     val selectedCategoryId: String? = null,
+    val selectedArModelId: String? = null,
+    val selectedMarkerId: String? = null,
     val audioUrlInput: String = "",
     val audioSource: TeacherAudioSource? = null,
     val errorMessage: String? = null,
@@ -48,6 +54,9 @@ data class CreateWordCardUiState(
 
     val hasAudio: Boolean
         get() = audioSource != null
+
+    val hasArAssociation: Boolean
+        get() = selectedArModelId != null && selectedMarkerId != null
 }
 
 class CreateWordCardViewModel(
@@ -70,6 +79,25 @@ class CreateWordCardViewModel(
 
     fun selectCategory(id: String) {
         _uiState.update { it.copy(selectedCategoryId = id, errorMessage = null) }
+    }
+
+    fun selectArModel(learningUnitId: String) {
+        _uiState.update { state ->
+            val model = state.arModels.firstOrNull { it.learningUnitId == learningUnitId }
+                ?: return@update state
+            val supportedMarkerIds = SUPPORTED_AR_MARKERS.map { it.markerId }
+            state.copy(
+                selectedArModelId = model.learningUnitId,
+                selectedMarkerId = model.markerId.takeIf { it in supportedMarkerIds }
+                    ?: supportedMarkerIds.firstOrNull(),
+                errorMessage = null
+            )
+        }
+    }
+
+    fun selectMarker(markerId: String) {
+        if (SUPPORTED_AR_MARKERS.none { it.markerId == markerId }) return
+        _uiState.update { it.copy(selectedMarkerId = markerId, errorMessage = null) }
     }
 
     fun updateAudioUrl(value: String) {
@@ -114,15 +142,33 @@ class CreateWordCardViewModel(
             return
         }
 
+        val selectedModel = snapshot.selectedArModelId?.let { learningUnitId ->
+            snapshot.arModels.firstOrNull { it.learningUnitId == learningUnitId }
+        }
+        if (snapshot.selectedArModelId != null &&
+            (selectedModel == null || snapshot.selectedMarkerId == null)
+        ) {
+            _uiState.update { it.copy(errorMessage = "Selecciona también un marcador para el modelo 3D.") }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, errorMessage = null) }
             runCatching {
                 val finalAudioUrl = resolveFinalAudioUrl(snapshot.audioSource)
+                if (selectedModel != null) {
+                    repository.associateArContent(
+                        learningUnitId = selectedModel.learningUnitId,
+                        markerId = requireNotNull(snapshot.selectedMarkerId),
+                        model3dUrl = selectedModel.model3dUrl
+                    )
+                }
                 repository.createWordCard(
                     studentId = requireNotNull(snapshot.selectedStudentId),
                     word = snapshot.word.trim(),
                     categoryId = requireNotNull(snapshot.selectedCategoryId),
-                    audioUrl = finalAudioUrl
+                    audioUrl = finalAudioUrl,
+                    learningUnitId = selectedModel?.learningUnitId
                 )
             }.onSuccess {
                 _uiState.update { it.copy(isSaving = false, saved = true) }
@@ -167,21 +213,21 @@ class CreateWordCardViewModel(
     private fun loadInitialData() {
         viewModelScope.launch {
             runCatching {
-                awaitAll(
-                    async { repository.getStudents() },
-                    async { repository.getCategories() }
-                )
-            }.onSuccess { results ->
-                @Suppress("UNCHECKED_CAST")
-                val students = results[0] as List<AppUser>
-                @Suppress("UNCHECKED_CAST")
-                val categories = results[1] as List<Category>
+                coroutineScope {
+                    val students = async { repository.getStudents() }
+                    val categories = async { repository.getCategories() }
+                    val arModels = async { repository.getArModels() }
+                    Triple(students.await(), categories.await(), arModels.await())
+                }
+            }.onSuccess { (students, categories, arModels) ->
                 _uiState.update {
                     it.copy(
                         isLoadingStudents = false,
                         isLoadingCategories = false,
+                        isLoadingArModels = false,
                         students = students,
-                        categories = categories.sortedBy { category -> category.sortOrder }
+                        categories = categories.sortedBy { category -> category.sortOrder },
+                        arModels = arModels
                     )
                 }
             }.onFailure { error ->
@@ -189,6 +235,7 @@ class CreateWordCardViewModel(
                     it.copy(
                         isLoadingStudents = false,
                         isLoadingCategories = false,
+                        isLoadingArModels = false,
                         errorMessage = error.toUiMessage("No fue posible cargar la información inicial.")
                     )
                 }
@@ -222,6 +269,8 @@ private fun Throwable.toAudioUiMessage(): String {
                 "Formato no permitido. Usa m4a, mp3 o wav."
             statusCode == 401 || normalized.contains("bearer token") ->
                 "Tu sesión expiró. Inicia sesión nuevamente."
+            statusCode == 409 && normalized.contains("marker") ->
+                "Ese marcador ya está asociado a otro modelo 3D. Selecciona el marcador original del modelo."
             else -> message
         }
     }
