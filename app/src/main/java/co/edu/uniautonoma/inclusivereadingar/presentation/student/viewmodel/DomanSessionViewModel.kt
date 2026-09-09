@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import co.edu.uniautonoma.inclusivereadingar.data.remote.BackendException
-import co.edu.uniautonoma.inclusivereadingar.data.repository.DomanRepository
+import co.edu.uniautonoma.inclusivereadingar.data.repository.DomanSessionDataSource
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSessionCard
 import co.edu.uniautonoma.inclusivereadingar.domain.model.OngoingDomanSession
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,10 +26,13 @@ data class DomanSessionUiState(
 ) {
     val currentCard: DomanSessionCard?
         get() = session?.cards?.getOrNull(currentIndex)
+
+    val canRunTimer: Boolean
+        get() = currentCard != null && !isPaused && !isCompleted && errorMessage.isNullOrBlank()
 }
 
 class DomanSessionViewModel(
-    private val domanRepository: DomanRepository
+    private val domanRepository: DomanSessionDataSource
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DomanSessionUiState())
     val uiState: StateFlow<DomanSessionUiState> = _uiState.asStateFlow()
@@ -35,24 +40,25 @@ class DomanSessionViewModel(
     private var activeCategoryId: String? = null
     private var activeCategoryName: String? = null
     private var lastShownCardId: String? = null
+    private var loadJob: Job? = null
+    private var loadGeneration: Long = 0
 
     fun resumeOrStart(categoryId: String, categoryName: String) {
-        if (_uiState.value.session != null && activeCategoryId == categoryId) {
+        val state = _uiState.value
+        if (activeCategoryId == categoryId && (state.session != null || loadJob?.isActive == true)) {
             return
         }
+        val generation = ++loadGeneration
+        loadJob?.cancel()
         activeCategoryId = categoryId
         activeCategoryName = categoryName
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             _uiState.value = DomanSessionUiState(isLoading = true)
-            runCatching {
-                val snapshot = domanRepository.getOngoingSession()
-                if (snapshot != null && snapshot.categoryId == categoryId) {
-                    val resumed = domanRepository.loadSession(snapshot.sessionId)
-                    resumed to snapshot.currentCardIndex.coerceIn(0, resumed.cards.lastIndex.coerceAtLeast(0))
-                } else {
-                    domanRepository.prepareSession(categoryId) to 0
+            try {
+                val (session, index) = loadStoredOrPrepareSession(categoryId)
+                if (generation != loadGeneration) {
+                    return@launch
                 }
-            }.onSuccess { (session, index) ->
                 _uiState.value = DomanSessionUiState(
                     isLoading = false,
                     session = session,
@@ -60,13 +66,55 @@ class DomanSessionViewModel(
                 )
                 persistSnapshot(index)
                 registerShownIfNeeded()
-            }.onFailure { error ->
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                if (generation != loadGeneration) {
+                    return@launch
+                }
                 _uiState.value = DomanSessionUiState(
                     isLoading = false,
                     errorMessage = error.toUiMessage("No fue posible iniciar la sesión del día.")
                 )
             }
         }
+    }
+
+    private suspend fun loadStoredOrPrepareSession(categoryId: String): Pair<DomanSession, Int> {
+        val snapshot = domanRepository.getOngoingSession()
+        if (snapshot == null || snapshot.categoryId != categoryId) {
+            return prepareUsableSession(categoryId)
+        }
+
+        try {
+            val resumed = domanRepository.loadSession(snapshot.sessionId)
+            if (resumed.cards.isNotEmpty()) {
+                return resumed to snapshot.currentCardIndex.coerceIn(0, resumed.cards.lastIndex)
+            }
+        } catch (error: BackendException) {
+            if (error.statusCode != 404) {
+                throw error
+            }
+        }
+        domanRepository.clearOngoingSession()
+        return prepareUsableSession(categoryId)
+    }
+
+    private suspend fun prepareUsableSession(categoryId: String): Pair<DomanSession, Int> {
+        val session = domanRepository.prepareSession(categoryId)
+        if (session.cards.isEmpty()) {
+            domanRepository.clearOngoingSession()
+            throw IllegalStateException(EMPTY_SESSION_MESSAGE)
+        }
+        return session to 0
+    }
+
+    fun retry(categoryId: String, categoryName: String) {
+        if (_uiState.value.session != null) {
+            _uiState.update { it.copy(errorMessage = null) }
+            return
+        }
+        resumeOrStart(categoryId, categoryName)
     }
 
     fun togglePause() {
@@ -92,9 +140,7 @@ class DomanSessionViewModel(
                     registerShownIfNeeded()
                 }
             }.onFailure { error ->
-                _uiState.update {
-                    it.copy(errorMessage = error.toUiMessage("No fue posible avanzar la sesión."))
-                }
+                handleSessionActionFailure(error, "No fue posible avanzar la sesión.")
             }
         }
     }
@@ -118,11 +164,23 @@ class DomanSessionViewModel(
                     registerShownIfNeeded()
                 }
             }.onFailure { error ->
-                _uiState.update {
-                    it.copy(errorMessage = error.toUiMessage("No fue posible omitir la tarjeta."))
-                }
+                handleSessionActionFailure(error, "No fue posible omitir la tarjeta.")
             }
         }
+    }
+
+    private suspend fun handleSessionActionFailure(error: Throwable, fallback: String) {
+        val message = error.toUiMessage(fallback)
+        if (error is BackendException && error.statusCode == 404) {
+            runCatching { domanRepository.clearOngoingSession() }
+            lastShownCardId = null
+            _uiState.value = DomanSessionUiState(
+                isLoading = false,
+                errorMessage = message
+            )
+            return
+        }
+        _uiState.update { it.copy(errorMessage = message) }
     }
 
     fun registerAudioPlayed() {
@@ -134,10 +192,6 @@ class DomanSessionViewModel(
                 domanRepository.registerAudioPlayed(session.sessionId, currentCard.id)
             }
         }
-    }
-
-    fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
     }
 
     private fun registerShownIfNeeded() {
@@ -177,7 +231,7 @@ class DomanSessionViewModel(
 }
 
 class DomanSessionViewModelFactory(
-    private val domanRepository: DomanRepository
+    private val domanRepository: DomanSessionDataSource
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -192,3 +246,6 @@ private fun Throwable.toUiMessage(fallback: String): String = when (this) {
     is BackendException -> message
     else -> message?.takeIf { it.isNotBlank() } ?: fallback
 }
+
+private const val EMPTY_SESSION_MESSAGE =
+    "La sesión no contiene tarjetas disponibles. Intenta de nuevo."

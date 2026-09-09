@@ -11,12 +11,25 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSessionHistoryIte
 import co.edu.uniautonoma.inclusivereadingar.domain.model.OngoingDomanSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentProgressSummary
 
+interface DomanSessionDataSource {
+    suspend fun prepareSession(categoryId: String): DomanSession
+    suspend fun loadSession(sessionId: String): DomanSession
+    suspend fun registerCardShown(sessionId: String, wordCardId: String, displayMs: Int)
+    suspend fun registerCardCompleted(sessionId: String, wordCardId: String)
+    suspend fun registerCardSkipped(sessionId: String, wordCardId: String)
+    suspend fun registerAudioPlayed(sessionId: String, wordCardId: String)
+    suspend fun completeSession(sessionId: String): DomanSession
+    suspend fun saveOngoingSession(snapshot: OngoingDomanSession)
+    suspend fun getOngoingSession(): OngoingDomanSession?
+    suspend fun clearOngoingSession()
+}
+
 class DomanRepository(
     private val sessionStore: SessionStore,
     private val plansApi: DomanPlansApi,
     private val sessionsApi: DomanSessionsApi
-) {
-    suspend fun prepareSession(categoryId: String): DomanSession {
+) : DomanSessionDataSource {
+    override suspend fun prepareSession(categoryId: String): DomanSession {
         val session = requireSession()
         plansApi.generate(
             studentId = session.user.id,
@@ -75,12 +88,12 @@ class DomanRepository(
         return plansApi.generate(studentId, categoryId, force, session.accessToken)
     }
 
-    suspend fun loadSession(sessionId: String): DomanSession {
+    override suspend fun loadSession(sessionId: String): DomanSession {
         val session = requireSession()
         return sessionsApi.getSession(sessionId, session.accessToken)
     }
 
-    suspend fun registerCardShown(sessionId: String, wordCardId: String, displayMs: Int) {
+    override suspend fun registerCardShown(sessionId: String, wordCardId: String, displayMs: Int) {
         val session = requireSession()
         sessionsApi.registerExposure(
             sessionId = sessionId,
@@ -91,7 +104,7 @@ class DomanRepository(
         )
     }
 
-    suspend fun registerCardCompleted(sessionId: String, wordCardId: String) {
+    override suspend fun registerCardCompleted(sessionId: String, wordCardId: String) {
         val session = requireSession()
         sessionsApi.registerExposure(
             sessionId = sessionId,
@@ -102,7 +115,7 @@ class DomanRepository(
         )
     }
 
-    suspend fun registerCardSkipped(sessionId: String, wordCardId: String) {
+    override suspend fun registerCardSkipped(sessionId: String, wordCardId: String) {
         val session = requireSession()
         sessionsApi.registerExposure(
             sessionId = sessionId,
@@ -113,7 +126,7 @@ class DomanRepository(
         )
     }
 
-    suspend fun registerAudioPlayed(sessionId: String, wordCardId: String) {
+    override suspend fun registerAudioPlayed(sessionId: String, wordCardId: String) {
         val session = requireSession()
         sessionsApi.registerExposure(
             sessionId = sessionId,
@@ -124,7 +137,7 @@ class DomanRepository(
         )
     }
 
-    suspend fun completeSession(sessionId: String): DomanSession {
+    override suspend fun completeSession(sessionId: String): DomanSession {
         val session = requireSession()
         return sessionsApi.complete(sessionId, session.accessToken)
     }
@@ -139,13 +152,13 @@ class DomanRepository(
         return sessionsApi.getProgressSummary(studentId, session.accessToken)
     }
 
-    suspend fun saveOngoingSession(snapshot: OngoingDomanSession) {
+    override suspend fun saveOngoingSession(snapshot: OngoingDomanSession) {
         sessionStore.saveOngoingSession(snapshot)
     }
 
-    suspend fun getOngoingSession(): OngoingDomanSession? = sessionStore.getOngoingSession()
+    override suspend fun getOngoingSession(): OngoingDomanSession? = sessionStore.getOngoingSession()
 
-    suspend fun clearOngoingSession() {
+    override suspend fun clearOngoingSession() {
         sessionStore.clearOngoingSession()
     }
 
@@ -155,4 +168,3 @@ class DomanRepository(
 
     fun deviceName(): String = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
 }
-

@@ -94,7 +94,7 @@ fun DomanSessionRoute(
         onAdvance = viewModel::advance,
         onSkip = viewModel::skip,
         onPlayAudio = viewModel::registerAudioPlayed,
-        onDismissError = viewModel::clearError
+        onRetry = { viewModel.retry(categoryId, categoryName) }
     )
 }
 
@@ -108,7 +108,7 @@ fun DomanSessionScreen(
     onAdvance: () -> Unit,
     onSkip: () -> Unit,
     onPlayAudio: () -> Unit,
-    onDismissError: () -> Unit
+    onRetry: () -> Unit
 ) {
     val session = uiState.session
     var remainingMillis by remember(uiState.currentIndex, session?.sessionId) {
@@ -118,18 +118,18 @@ fun DomanSessionScreen(
         mutableFloatStateOf(1f)
     }
 
-    LaunchedEffect(uiState.currentIndex, uiState.isPaused, session?.sessionId) {
-        if (session == null || uiState.isPaused || uiState.isCompleted) {
+    LaunchedEffect(uiState.currentIndex, uiState.canRunTimer, session?.sessionId) {
+        if (session == null || !uiState.canRunTimer) {
             return@LaunchedEffect
         }
         remainingMillis = session.displayMs
         progress = 1f
-        while (remainingMillis > 0 && !uiState.isPaused) {
+        while (remainingMillis > 0) {
             delay(100)
             remainingMillis = (remainingMillis - 100).coerceAtLeast(0)
             progress = remainingMillis.toFloat() / session.displayMs.toFloat()
         }
-        if (!uiState.isPaused && remainingMillis == 0) {
+        if (uiState.canRunTimer && remainingMillis == 0) {
             onAdvance()
         }
     }
@@ -172,9 +172,10 @@ fun DomanSessionScreen(
                 CircularProgressIndicator(color = Color(0xFFE53734))
             }
 
-            !uiState.errorMessage.isNullOrBlank() -> Box(
+            !uiState.errorMessage.isNullOrBlank() -> Column(
                 modifier = Modifier.fillMaxSize().padding(24.dp),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
                 Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.errorContainer) {
                     Text(
@@ -184,7 +185,19 @@ fun DomanSessionScreen(
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
-                LaunchedEffect(Unit) { onDismissError() }
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier.padding(top = 16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE53734),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = if (session == null) "Reintentar" else "Volver a la sesión",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             session == null || uiState.currentCard == null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -369,7 +382,5 @@ private fun resolvePlaybackUrl(audioUrl: String, backendBaseUrl: String): String
         else -> "$base/$value"
     }
 }
-
-
 
 
