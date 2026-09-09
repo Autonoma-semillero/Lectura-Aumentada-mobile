@@ -96,8 +96,21 @@ export class CameraController {
   }
 
   mountCameraVideo(video) {
-    if (!video || video.parentElement === this.root) return;
-    this.root.prepend(video);
+    if (!video) return;
+
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute?.("autoplay", "");
+    video.setAttribute?.("muted", "");
+    video.setAttribute?.("playsinline", "");
+
+    if (video.parentElement !== this.root) this.root.prepend(video);
+
+    const playback = video.play?.();
+    playback?.catch?.(() =>
+      this.onCameraError("No se pudo iniciar la vista en vivo de la cámara.")
+    );
   }
 }
 

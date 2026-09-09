@@ -13,4 +13,5 @@ test("allows the trusted bundled AR runtime to evaluate JavaScript and WebAssemb
   assert.ok(policy, "the WebAR page must declare a content security policy");
   assert.match(policy, /script-src[^;]*'unsafe-eval'/);
   assert.match(policy, /script-src[^;]*'wasm-unsafe-eval'/);
+  assert.match(policy, /style-src[^;]*'unsafe-inline'/);
 });

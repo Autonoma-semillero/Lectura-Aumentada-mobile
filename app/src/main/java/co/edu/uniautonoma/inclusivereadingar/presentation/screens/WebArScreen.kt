@@ -182,7 +182,7 @@ fun WebArScreen(
 
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = false
-                    settings.mediaPlaybackRequiresUserGesture = true
+                    settings.mediaPlaybackRequiresUserGesture = false
                     settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                     settings.allowFileAccess = false
                     settings.allowContentAccess = false
