@@ -11,6 +11,8 @@ test("subscribes to the AR.js camera lifecycle on window", (context) => {
   let documentSubscriptions = 0;
   let mountedVideo = null;
   let playCalls = 0;
+  let queriedVideos = [];
+  let removedVideos = 0;
 
   const createElement = () => ({
     dataset: {},
@@ -33,7 +35,7 @@ test("subscribes to the AR.js camera lifecycle on window", (context) => {
   globalThis.document = {
     createElement,
     querySelectorAll() {
-      return [];
+      return queriedVideos;
     },
     addEventListener() {
       documentSubscriptions += 1;
@@ -63,9 +65,18 @@ test("subscribes to the AR.js camera lifecycle on window", (context) => {
   assert.deepEqual(addedEvents, ["camera-init", "camera-error", "arjs-video-loaded"]);
   assert.equal(documentSubscriptions, 0);
 
+  const staleVideo = {
+    parentElement: globalThis.document,
+    srcObject: null,
+    pause() {},
+    remove() {
+      removedVideos += 1;
+    },
+  };
   const videoAttributes = new Map();
   const video = {
     parentElement: globalThis.document,
+    srcObject: { getTracks: () => [] },
     setAttribute(name, value) {
       videoAttributes.set(name, value);
     },
@@ -73,8 +84,13 @@ test("subscribes to the AR.js camera lifecycle on window", (context) => {
       playCalls += 1;
       return Promise.resolve();
     },
+    pause() {},
+    remove() {
+      removedVideos += 1;
+    },
   };
-  windowListeners.get("arjs-video-loaded")({ detail: { component: video } });
+  queriedVideos = [staleVideo, video];
+  windowListeners.get("arjs-video-loaded")({ detail: { component: staleVideo } });
   assert.equal(mountedVideo, video);
   assert.equal(video.parentElement, root);
   assert.equal(video.autoplay, true);
@@ -85,4 +101,5 @@ test("subscribes to the AR.js camera lifecycle on window", (context) => {
 
   controller.stop();
   assert.deepEqual(removedEvents, ["camera-init", "camera-error", "arjs-video-loaded"]);
+  assert.equal(removedVideos, 2);
 });

@@ -86,6 +86,7 @@ export class CameraController {
       for (const track of video.srcObject?.getTracks?.() ?? []) track.stop();
       video.pause();
       video.srcObject = null;
+      video.remove();
     }
     this.scene?.systems?.arjs?.arToolkitSource?.domElement?.srcObject
       ?.getTracks?.()
@@ -98,16 +99,19 @@ export class CameraController {
   mountCameraVideo(video) {
     if (!video) return;
 
-    video.autoplay = true;
-    video.muted = true;
-    video.playsInline = true;
-    video.setAttribute?.("autoplay", "");
-    video.setAttribute?.("muted", "");
-    video.setAttribute?.("playsinline", "");
+    const activeVideo =
+      [...document.querySelectorAll("video")].find((candidate) => candidate.srcObject) ?? video;
 
-    if (video.parentElement !== this.root) this.root.prepend(video);
+    activeVideo.autoplay = true;
+    activeVideo.muted = true;
+    activeVideo.playsInline = true;
+    activeVideo.setAttribute?.("autoplay", "");
+    activeVideo.setAttribute?.("muted", "");
+    activeVideo.setAttribute?.("playsinline", "");
 
-    const playback = video.play?.();
+    if (activeVideo.parentElement !== this.root) this.root.prepend(activeVideo);
+
+    const playback = activeVideo.play?.();
     playback?.catch?.(() =>
       this.onCameraError("No se pudo iniciar la vista en vivo de la cámara.")
     );
