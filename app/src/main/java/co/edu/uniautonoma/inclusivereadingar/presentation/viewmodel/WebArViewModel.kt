@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import co.edu.uniautonoma.inclusivereadingar.domain.model.ArAsset
 import co.edu.uniautonoma.inclusivereadingar.domain.ocr.OcrWordNormalizer
+import co.edu.uniautonoma.inclusivereadingar.domain.ocr.OcrWordStabilizer
 import co.edu.uniautonoma.inclusivereadingar.domain.repository.ArAssetRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -405,7 +406,7 @@ class WebArViewModel(
 
     private companion object {
         val MARKER_ID_PATTERN = Regex("^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-        const val MIN_OCR_CONFIDENCE = 0.60f
+        const val MIN_OCR_CONFIDENCE = OcrWordStabilizer.DEFAULT_MINIMUM_CONFIDENCE
         const val MAX_ERROR_LENGTH = 240
     }
 }

@@ -207,13 +207,21 @@ class OcrWordStabilizer(
         val word = OcrWordNormalizer.normalize(candidate.word) ?: return null
         if (!candidate.confidence.isFinite() || candidate.confidence < minimumConfidence) return null
         if (!candidate.centerX.isFinite() || !candidate.centerY.isFinite()) return null
-        return candidate.copy(
+        val validated = candidate.copy(
             word = word,
             confidence = candidate.confidence.coerceIn(0f, 1f),
             centerX = candidate.centerX.coerceIn(0f, 1f),
             centerY = candidate.centerY.coerceIn(0f, 1f),
             relativeArea = candidate.relativeArea.coerceIn(0f, 1f)
         )
+        if (validated.confidence < STANDARD_CONFIDENCE &&
+            (validated.word.length < LOW_CONFIDENCE_MIN_WORD_LENGTH ||
+                validated.relativeArea < LOW_CONFIDENCE_MIN_RELATIVE_AREA ||
+                centerDistance(validated) > LOW_CONFIDENCE_MAX_CENTER_DISTANCE)
+        ) {
+            return null
+        }
+        return validated
     }
 
     private fun score(candidate: OcrWordCandidate): Float {
@@ -238,10 +246,16 @@ class OcrWordStabilizer(
     ).toFloat()
 
     companion object {
-        const val DEFAULT_MINIMUM_CONFIDENCE = 0.60f
+        // Pencil handwriting commonly scores below ML Kit's printed-text confidence.
+        // Low-confidence candidates are constrained by length, size and central position.
+        const val DEFAULT_MINIMUM_CONFIDENCE = 0.32f
         const val DEFAULT_CONFIRMATION_FRAMES = 2
         const val DEFAULT_LOSS_FRAMES = 3
         const val DEFAULT_MOVEMENT_THRESHOLD = 0.04f
+        private const val STANDARD_CONFIDENCE = 0.60f
+        private const val LOW_CONFIDENCE_MIN_WORD_LENGTH = 3
+        private const val LOW_CONFIDENCE_MIN_RELATIVE_AREA = 0.005f
+        private const val LOW_CONFIDENCE_MAX_CENTER_DISTANCE = 0.35f
         private const val CENTER_WEIGHT = 0.08f
         private const val AREA_SCALE = 4f
         private const val AREA_WEIGHT = 0.12f

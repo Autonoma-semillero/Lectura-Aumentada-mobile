@@ -140,11 +140,26 @@ class WebArViewModelTest {
         val repository = FakeArAssetRepository(results = emptyMap())
         val viewModel = WebArViewModel(repository)
 
-        viewModel.onOcrWordDetected("árbol", 0.40f, 0.5f, 0.5f)
+        viewModel.onOcrWordDetected("árbol", 0.30f, 0.5f, 0.5f)
         advanceUntilIdle()
 
         assertThat(repository.wordRequests).isEmpty()
         assertThat(viewModel.uiState.value.activeWordTarget).isNull()
+    }
+
+    @Test
+    fun stabilizedHandwrittenWord_isAcceptedByTheViewModel() = runTest {
+        val repository = FakeArAssetRepository(
+            results = emptyMap(),
+            wordResults = mapOf("gato" to gatoAsset)
+        )
+        val viewModel = WebArViewModel(repository)
+
+        viewModel.onOcrWordDetected("GATO", 0.40f, 0.45f, 0.57f)
+        advanceUntilIdle()
+
+        assertThat(repository.wordRequests).containsExactly("gato")
+        assertThat(viewModel.uiState.value.activeWordTarget?.word).isEqualTo("gato")
     }
 
     @Test

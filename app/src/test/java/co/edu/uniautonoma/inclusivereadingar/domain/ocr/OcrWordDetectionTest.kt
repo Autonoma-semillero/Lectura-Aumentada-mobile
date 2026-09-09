@@ -63,6 +63,42 @@ class OcrWordDetectionTest {
     }
 
     @Test
+    fun stabilizer_acceptsTheObservedHandwritingConfidenceSequence() {
+        val stabilizer = OcrWordStabilizer()
+        val firstFrame = candidate(
+            "GATO",
+            confidence = 0.490f,
+            centerX = 0.446f,
+            centerY = 0.470f,
+            relativeArea = 0.0284f
+        )
+        val secondFrame = candidate(
+            "GATO",
+            confidence = 0.331f,
+            centerX = 0.447f,
+            centerY = 0.471f,
+            relativeArea = 0.0297f
+        )
+
+        assertThat(stabilizer.update(listOf(firstFrame))).isEmpty()
+        assertThat(stabilizer.update(listOf(secondFrame))).containsExactly(
+            OcrWordEvent.Detected(secondFrame.copy(word = "gato"))
+        )
+    }
+
+    @Test
+    fun stabilizer_rejectsLowConfidenceShortTinyOrPeripheralNoise() {
+        val stabilizer = OcrWordStabilizer()
+        val short = candidate("ab", confidence = 0.40f)
+        val tiny = candidate("ruido", confidence = 0.40f, relativeArea = 0.001f)
+        val peripheral = candidate("ruido", confidence = 0.40f, centerX = 0.08f)
+
+        repeat(3) { assertThat(stabilizer.update(listOf(short))).isEmpty() }
+        repeat(3) { assertThat(stabilizer.update(listOf(tiny))).isEmpty() }
+        repeat(3) { assertThat(stabilizer.update(listOf(peripheral))).isEmpty() }
+    }
+
+    @Test
     fun stabilizer_switchesDirectlyWhenTheOldWordDisappearsAndANewOneRepeats() {
         val stabilizer = OcrWordStabilizer()
         val gato = candidate("gato", 0.92f)
@@ -125,12 +161,13 @@ class OcrWordDetectionTest {
         word: String,
         confidence: Float,
         centerX: Float = 0.5f,
-        centerY: Float = 0.5f
+        centerY: Float = 0.5f,
+        relativeArea: Float = 0.03f
     ) = OcrWordCandidate(
         word = word,
         confidence = confidence,
         centerX = centerX,
         centerY = centerY,
-        relativeArea = 0.03f
+        relativeArea = relativeArea
     )
 }
