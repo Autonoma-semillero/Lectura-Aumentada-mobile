@@ -77,6 +77,7 @@ test("subscribes to the AR.js camera lifecycle on window", (context) => {
   assert.ok(controller.wordModelRoot, "a camera-relative root is created for OCR words");
   assert.equal(controller.wordModelRoot.dataset.targetType, "word");
   assert.equal(controller.wordModelRoot.attributes.get("position"), "0 0 -2");
+  assert.equal(controller.wordModelRoot.attributes.get("scale"), "1 1 1");
 
   // Before A-Frame exposes scene.camera, positioning falls back safely to the center.
   assert.equal(controller.positionWordTarget({ centerX: 1, centerY: 0 }), true);

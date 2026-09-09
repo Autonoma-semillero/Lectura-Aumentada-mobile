@@ -1,3 +1,7 @@
+const WORD_TARGET_TYPE = "word";
+const WORD_MODEL_MAX_SIZE = 0.45;
+const WORD_MODEL_FALLBACK_SCALE = 0.25;
+
 export class ModelController {
   constructor(onStateChange, { onModelReady = () => {}, onModelError = () => {} } = {}) {
     this.onStateChange = onStateChange;
@@ -33,9 +37,14 @@ export class ModelController {
     const model = anchor.ownerDocument?.createElement?.("a-entity")
       ?? document.createElement("a-entity");
     anchor.appendChild(model);
+    const isWordTarget = anchor.dataset?.targetType === WORD_TARGET_TYPE;
+    if (isWordTarget) {
+      model.setAttribute("scale", uniformScale(WORD_MODEL_FALLBACK_SCALE));
+    }
     this.activeModel = model;
     this.onLoaded = () => {
       if (this.activeModel !== model) return;
+      if (isWordTarget) this.#fitWordModel(model);
       this.onStateChange("visible");
       this.onModelReady(assetId);
     };
@@ -50,6 +59,43 @@ export class ModelController {
     model.addEventListener("model-error", this.onError, { once: true });
     this.onStateChange("cargando");
     model.setAttribute("gltf-model", modelUrl);
+  }
+
+  #fitWordModel(model) {
+    const object = model.getObject3D?.("mesh");
+    const Three = globalThis.THREE ?? globalThis.AFRAME?.THREE;
+    if (!object || !model.object3D?.worldToLocal || !Three?.Box3 || !Three?.Vector3) return false;
+
+    try {
+      model.object3D.updateWorldMatrix?.(true, true);
+      object.updateWorldMatrix?.(true, true);
+      const worldBounds = new Three.Box3().setFromObject(object);
+      if (worldBounds.isEmpty?.()) return false;
+
+      // Convert all eight world-AABB corners back to the model entity. This is
+      // conservative even if an ancestor is rotated, so the fitted model stays
+      // inside the requested camera-space size instead of being clipped.
+      const localBounds = new Three.Box3().makeEmpty();
+      for (const x of [worldBounds.min.x, worldBounds.max.x]) {
+        for (const y of [worldBounds.min.y, worldBounds.max.y]) {
+          for (const z of [worldBounds.min.z, worldBounds.max.z]) {
+            localBounds.expandByPoint(
+              model.object3D.worldToLocal(new Three.Vector3(x, y, z))
+            );
+          }
+        }
+      }
+
+      const transform = calculateWordModelTransform(localBounds);
+      if (!transform) return false;
+      model.setAttribute("scale", uniformScale(transform.scale));
+      model.setAttribute("position", transform.position);
+      return true;
+    } catch {
+      // The known-safe fallback remains applied when malformed geometry cannot
+      // produce a finite bounding box.
+      return false;
+    }
   }
 
   clear() {
@@ -102,4 +148,37 @@ export class ModelController {
     });
     model.removeObject3D?.("mesh");
   }
+}
+
+export function calculateWordModelTransform(bounds) {
+  const values = [
+    bounds?.min?.x,
+    bounds?.min?.y,
+    bounds?.min?.z,
+    bounds?.max?.x,
+    bounds?.max?.y,
+    bounds?.max?.z,
+  ];
+  if (!values.every(Number.isFinite)) return null;
+
+  const sizeX = bounds.max.x - bounds.min.x;
+  const sizeY = bounds.max.y - bounds.min.y;
+  const sizeZ = bounds.max.z - bounds.min.z;
+  const maxSize = Math.max(sizeX, sizeY, sizeZ);
+  if (!Number.isFinite(maxSize) || maxSize <= 0) return null;
+
+  const scale = WORD_MODEL_MAX_SIZE / maxSize;
+  return {
+    scale,
+    position: {
+      x: -((bounds.min.x + bounds.max.x) / 2) * scale,
+      // Keep the model's base on the OCR anchor above the detected word.
+      y: -bounds.min.y * scale,
+      z: -((bounds.min.z + bounds.max.z) / 2) * scale,
+    },
+  };
+}
+
+function uniformScale(value) {
+  return { x: value, y: value, z: value };
 }

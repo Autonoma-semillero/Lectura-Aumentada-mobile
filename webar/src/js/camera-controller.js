@@ -78,7 +78,9 @@ export class CameraController {
     wordModelRoot.setAttribute("id", "word-model-root");
     wordModelRoot.setAttribute("position", "0 0 -2");
     wordModelRoot.setAttribute("rotation", "0 0 0");
-    wordModelRoot.setAttribute("scale", "0.6 0.6 0.6");
+    // Word models are normalized after loading, so this anchor stays in
+    // camera-space units and only controls the detected screen position.
+    wordModelRoot.setAttribute("scale", "1 1 1");
     wordModelRoot.dataset.targetType = "word";
     camera.appendChild(wordModelRoot);
     scene.appendChild(camera);
