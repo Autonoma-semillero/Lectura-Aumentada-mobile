@@ -8,6 +8,7 @@ export class CameraController {
     this.markerEntries = [];
     this.cameraReadyHandler = () => this.onCameraReady();
     this.cameraErrorHandler = (event) => this.onCameraError(normalizeCameraError(event));
+    this.videoReadyHandler = (event) => this.mountCameraVideo(event?.detail?.component);
   }
 
   async capabilities() {
@@ -29,6 +30,7 @@ export class CameraController {
 
     window.addEventListener("camera-init", this.cameraReadyHandler, { once: true });
     window.addEventListener("camera-error", this.cameraErrorHandler, { once: true });
+    window.addEventListener("arjs-video-loaded", this.videoReadyHandler, { once: true });
 
     const scene = document.createElement("a-scene");
     scene.setAttribute("embedded", "");
@@ -79,6 +81,7 @@ export class CameraController {
   stop() {
     window.removeEventListener("camera-init", this.cameraReadyHandler);
     window.removeEventListener("camera-error", this.cameraErrorHandler);
+    window.removeEventListener("arjs-video-loaded", this.videoReadyHandler);
     for (const video of document.querySelectorAll("video")) {
       for (const track of video.srcObject?.getTracks?.() ?? []) track.stop();
       video.pause();
@@ -90,6 +93,11 @@ export class CameraController {
     this.scene?.remove();
     this.scene = null;
     this.markerEntries = [];
+  }
+
+  mountCameraVideo(video) {
+    if (!video || video.parentElement === this.root) return;
+    this.root.prepend(video);
   }
 }
 

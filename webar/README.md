@@ -39,6 +39,11 @@ Las imágenes proceden del repositorio oficial de AR.js y se incluyen solamente
 como fixtures reproducibles. Imprímelas sin recortar el borde negro y evita
 reflejos directos.
 
+`demo-animales-gato` usa el modelo CC0 `animal-cat.glb` de Kenney Cube Pets,
+incluido en `app/src/main/assets/models/animals`. La URL almacenada en MongoDB
+apunta al origen seguro local de `WebViewAssetLoader`, por lo que el modelo no
+depende de una descarga de red durante la experiencia AR.
+
 ## Verificación manual
 
 1. Configura `backendBaseUrl` en `local.properties` y levanta el backend con una
