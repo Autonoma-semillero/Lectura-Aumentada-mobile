@@ -6,17 +6,17 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.SessionUser
 import org.json.JSONObject
 
 interface AuthApi {
-    suspend fun login(email: String, password: String): AuthSession
+    suspend fun login(identifier: String, password: String): AuthSession
 }
 
 class HttpAuthApi(
     private val httpClient: BackendHttpClient
 ) : AuthApi {
-    override suspend fun login(email: String, password: String): AuthSession {
+    override suspend fun login(identifier: String, password: String): AuthSession {
         val response = httpClient.post(
             path = "/auth/login",
             body = JSONObject()
-                .put("email", email.trim())
+                .put("identifier", identifier.trim())
                 .put("password", password)
         )
         return runCatching {

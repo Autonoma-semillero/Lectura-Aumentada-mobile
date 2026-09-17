@@ -26,7 +26,7 @@ class AuthApiTest {
         val viewModel = AuthViewModel(repository)
         var loginSuccess = false
 
-        viewModel.updateEmail("student@lectura.app")
+        viewModel.updateIdentifier("student")
         viewModel.updatePassword("Lectura123!")
         viewModel.login { loginSuccess = true }
         advanceUntilIdle()
@@ -34,23 +34,23 @@ class AuthApiTest {
         assertThat(loginSuccess).isTrue()
         assertThat(viewModel.uiState.value.isLoading).isFalse()
         assertThat(viewModel.uiState.value.errorMessage).isNull()
-        assertThat(repository.savedEmail).isEqualTo("student@lectura.app")
+        assertThat(repository.savedIdentifier).isEqualTo("student")
     }
 }
 
 private class FakeAuthRepository : AuthSessionRepository {
     private val _sessionFlow = MutableStateFlow<AuthSession?>(null)
-    var savedEmail: String? = null
+    var savedIdentifier: String? = null
 
     override val sessionFlow: Flow<AuthSession?> = _sessionFlow
 
-    override suspend fun login(email: String, password: String): AuthSession {
-        savedEmail = email
+    override suspend fun login(identifier: String, password: String): AuthSession {
+        savedIdentifier = identifier
         val session = AuthSession(
             accessToken = "token-123",
             user = SessionUser(
                 id = "user-1",
-                email = email,
+                email = "student@lectura.app",
                 displayName = "Demo Student",
                 roles = listOf("student"),
                 status = "active"

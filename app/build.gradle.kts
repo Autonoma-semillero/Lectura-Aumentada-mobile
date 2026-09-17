@@ -21,7 +21,7 @@ val localProperties = Properties().apply {
 val backendBaseUrl = (
     findProperty("backendBaseUrl") as String?
         ?: localProperties.getProperty("backendBaseUrl")
-        ?: "http://10.0.2.2:3000"
+        ?: "https://lectura-aumentada-back-end-6kt1.vercel.app"
 ).trim().removeSuffix("/")
 
 android {
@@ -109,6 +109,10 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Android's org.json classes are stubs in local JVM tests; use the reference implementation.
+    testImplementation("org.json:json:20260814")
+    // Android's org.json classes are stubs in local JVM tests; use the real implementation.
+    testImplementation("org.json:json:20260814")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

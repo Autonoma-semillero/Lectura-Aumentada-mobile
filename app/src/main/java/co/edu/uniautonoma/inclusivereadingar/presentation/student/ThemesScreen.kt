@@ -237,13 +237,13 @@ fun ThemesScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "No hay tarjetas disponibles para hoy",
+                            text = "No hay sesiones programadas para hoy",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "Cierra sesion y vuelve a ingresar para sincronizar tus tarjetas del dia.",
+                            text = "Tu profesor puede asignar categorías y tarjetas desde tu plan de estudio.",
                             color = Color(0xFF64748B),
                             textAlign = TextAlign.Center
                         )

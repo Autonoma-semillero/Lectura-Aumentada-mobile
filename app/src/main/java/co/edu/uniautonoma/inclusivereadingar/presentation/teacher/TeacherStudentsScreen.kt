@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BarChart
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.PlaylistAdd
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,6 +56,8 @@ fun TeacherStudentsRoute(
     onBack: () -> Unit,
     onThemesClick: () -> Unit,
     onWordCardsClick: () -> Unit,
+    onGroupsClick: () -> Unit,
+    onAssignPlanClick: () -> Unit,
     onPlansClick: (id: String, name: String) -> Unit,
     onProgressClick: (id: String, name: String) -> Unit
 ) {
@@ -69,6 +73,8 @@ fun TeacherStudentsRoute(
         onBack = onBack,
         onThemesClick = onThemesClick,
         onWordCardsClick = onWordCardsClick,
+        onGroupsClick = onGroupsClick,
+        onAssignPlanClick = onAssignPlanClick,
         onPlansClick = onPlansClick,
         onProgressClick = onProgressClick,
         onRetry = viewModel::load
@@ -81,6 +87,8 @@ fun TeacherStudentsScreen(
     onBack: () -> Unit,
     onThemesClick: () -> Unit,
     onWordCardsClick: () -> Unit,
+    onGroupsClick: () -> Unit,
+    onAssignPlanClick: () -> Unit,
     onPlansClick: (id: String, name: String) -> Unit,
     onProgressClick: (id: String, name: String) -> Unit,
     onRetry: () -> Unit
@@ -111,6 +119,33 @@ fun TeacherStudentsScreen(
                     )
                 }
                 Box(modifier = Modifier.size(40.dp))
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = onAssignPlanClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53734))
+                ) {
+                    Icon(Icons.Rounded.PlaylistAdd, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text("Asignar plan", modifier = Modifier.padding(start = 7.dp), fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = onGroupsClick,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFD4E3FF),
+                        contentColor = Color(0xFF0060AC)
+                    )
+                ) {
+                    Icon(Icons.Rounded.Groups, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text("Grupos", modifier = Modifier.padding(start = 7.dp), fontWeight = FontWeight.Bold)
+                }
             }
 
             when {

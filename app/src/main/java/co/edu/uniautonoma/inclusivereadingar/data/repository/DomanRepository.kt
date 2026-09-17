@@ -5,6 +5,7 @@ import co.edu.uniautonoma.inclusivereadingar.data.local.SessionStore
 import co.edu.uniautonoma.inclusivereadingar.data.remote.DomanPlansApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.DomanSessionsApi
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AuthSession
+import co.edu.uniautonoma.inclusivereadingar.domain.model.BulkPlanGenerationResult
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DailyPlanSummary
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSessionHistoryItem
@@ -86,6 +87,30 @@ class DomanRepository(
     suspend fun generatePlan(studentId: String, categoryId: String? = null, force: Boolean = true): DailyPlanSummary {
         val session = requireSession()
         return plansApi.generate(studentId, categoryId, force, session.accessToken)
+    }
+
+    suspend fun generateBulkPlan(
+        groupIds: Collection<String>,
+        studentIds: Collection<String>,
+        categoryId: String?,
+        planDate: String? = null,
+        targetCardsCount: Int? = null,
+        targetSessionsCount: Int? = null,
+        displayMs: Int? = null,
+        force: Boolean = false
+    ): BulkPlanGenerationResult {
+        val session = requireSession()
+        return plansApi.generateBulk(
+            groupIds = groupIds,
+            studentIds = studentIds,
+            categoryId = categoryId,
+            planDate = planDate,
+            targetCardsCount = targetCardsCount,
+            targetSessionsCount = targetSessionsCount,
+            displayMs = displayMs,
+            force = force,
+            accessToken = session.accessToken
+        )
     }
 
     override suspend fun loadSession(sessionId: String): DomanSession {

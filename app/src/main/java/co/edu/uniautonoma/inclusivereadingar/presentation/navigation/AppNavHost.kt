@@ -41,7 +41,9 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.DocenteComplet
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.EditWordCardRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.ManageThemesRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherDomanPlansRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherGroupsRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherLoginRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherPlanAssignmentRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentProgressRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentsRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.WordCardCategoryListRoute
@@ -136,6 +138,12 @@ fun AppNavHost() {
                 onBack = navController::navigateBackOrTeacherThemes,
                 onThemesClick = navController::navigateToTeacherThemes,
                 onWordCardsClick = navController::navigateToTeacherWordCards,
+                onGroupsClick = navController::navigateToTeacherGroups,
+                onAssignPlanClick = {
+                    navController.navigate(AppDestinations.teacherPlanAssignmentRoute()) {
+                        launchSingleTop = true
+                    }
+                },
                 onPlansClick = { id, name ->
                     navController.navigate(AppDestinations.teacherDomanPlanRoute(id, name)) {
                         launchSingleTop = true
@@ -146,6 +154,33 @@ fun AppNavHost() {
                         launchSingleTop = true
                     }
                 }
+            )
+        }
+
+        composable(route = AppDestinations.TEACHER_GROUPS_ROUTE) {
+            TeacherGroupsRoute(onBack = navController::navigateBackOrTeacherStudents)
+        }
+
+        composable(
+            route = AppDestinations.TEACHER_PLAN_ASSIGNMENT_ROUTE,
+            arguments = listOf(
+                navArgument("studentId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("studentName") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { entry ->
+            TeacherPlanAssignmentRoute(
+                preselectedStudentId = entry.arguments?.getString("studentId"),
+                preselectedStudentName = entry.arguments?.getString("studentName"),
+                onBack = navController::navigateBackOrTeacherStudents,
+                onManageGroups = navController::navigateToTeacherGroups
             )
         }
 
@@ -379,6 +414,12 @@ private fun NavHostController.navigateToTeacherStudents() {
     }
 }
 
+private fun NavHostController.navigateToTeacherGroups() {
+    navigate(AppDestinations.TEACHER_GROUPS_ROUTE) {
+        launchSingleTop = true
+    }
+}
+
 private fun NavHostController.navigateToDomanSession(categoryId: String, categoryName: String) {
     navigate(AppDestinations.domanSessionRoute(categoryId, categoryName)) {
         launchSingleTop = true
@@ -436,4 +477,3 @@ private fun NavHostController.navigateBackOrTeacherStudents() {
 private fun String?.isLoginRoute(): Boolean {
     return this == AppDestinations.LOGIN_ROUTE || this == AppDestinations.TEACHER_LOGIN_ROUTE
 }
-

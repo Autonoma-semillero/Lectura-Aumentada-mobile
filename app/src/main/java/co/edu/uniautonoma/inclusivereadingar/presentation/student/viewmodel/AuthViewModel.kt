@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class AuthUiState(
-    val email: String = "",
+    val identifier: String = "",
     val password: String = "",
     val isLoading: Boolean = false,
     val errorMessage: String? = null
@@ -24,8 +24,8 @@ class AuthViewModel(
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    fun updateEmail(value: String) {
-        _uiState.update { it.copy(email = value, errorMessage = null) }
+    fun updateIdentifier(value: String) {
+        _uiState.update { it.copy(identifier = value, errorMessage = null) }
     }
 
     fun updatePassword(value: String) {
@@ -34,15 +34,15 @@ class AuthViewModel(
 
     fun login(onSuccess: () -> Unit) {
         val snapshot = _uiState.value
-        if (snapshot.email.isBlank() || snapshot.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Ingresa tu correo y tu contraseña.") }
+        if (snapshot.identifier.isBlank() || snapshot.password.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Ingresa tu usuario o correo y tu contraseña.") }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
-                authRepository.login(snapshot.email, snapshot.password)
+                authRepository.login(snapshot.identifier, snapshot.password)
             }.onSuccess {
                 _uiState.update { it.copy(isLoading = false, password = "") }
                 onSuccess()

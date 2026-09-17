@@ -20,7 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Mail
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,11 +62,11 @@ fun TeacherLoginRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     TeacherLoginScreen(
-        email = uiState.email,
+        identifier = uiState.identifier,
         password = uiState.password,
         isLoading = uiState.isLoading,
         errorMessage = uiState.errorMessage,
-        onEmailChange = viewModel::updateEmail,
+        onIdentifierChange = viewModel::updateIdentifier,
         onPasswordChange = viewModel::updatePassword,
         onLoginClick = { viewModel.login(onLoginSuccess) },
         onStudentLoginClick = onStudentLoginClick
@@ -75,11 +75,11 @@ fun TeacherLoginRoute(
 
 @Composable
 fun TeacherLoginScreen(
-    email: String,
+    identifier: String,
     password: String,
     isLoading: Boolean,
     errorMessage: String?,
-    onEmailChange: (String) -> Unit,
+    onIdentifierChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onLoginClick: () -> Unit,
     onStudentLoginClick: () -> Unit
@@ -158,11 +158,11 @@ fun TeacherLoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             TeacherLoginField(
-                value = email,
-                onValueChange = onEmailChange,
-                label = "Correo electrónico",
-                placeholder = "teacher@lectura.app",
-                leadingIcon = Icons.Rounded.Mail,
+                value = identifier,
+                onValueChange = onIdentifierChange,
+                label = "Usuario o correo electrónico",
+                placeholder = "profe.ana o teacher@lectura.app",
+                leadingIcon = Icons.Rounded.Person,
                 isPassword = false
             )
 

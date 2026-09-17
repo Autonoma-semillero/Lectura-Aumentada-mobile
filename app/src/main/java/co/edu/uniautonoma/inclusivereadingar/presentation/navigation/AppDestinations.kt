@@ -8,6 +8,9 @@ object AppDestinations {
     const val SESSION_SUMMARY_ROUTE = "session_summary/{categoryName}/{cardsCount}"
     const val TEACHER_THEMES_ROUTE = "teacher_themes"
     const val TEACHER_STUDENTS_ROUTE = "teacher_students"
+    const val TEACHER_GROUPS_ROUTE = "teacher_groups"
+    const val TEACHER_PLAN_ASSIGNMENT_ROUTE =
+        "teacher_plan_assignment?studentId={studentId}&studentName={studentName}"
     const val TEACHER_DOMAN_PLAN_ROUTE = "teacher_doman_plan/{studentId}/{studentName}"
     const val TEACHER_PROGRESS_ROUTE = "teacher_progress/{studentId}/{studentName}"
     const val TEACHER_THEME_FORM_ROUTE = "teacher_theme_form?themeId={themeId}"
@@ -55,6 +58,12 @@ object AppDestinations {
 
     fun teacherDomanPlanRoute(studentId: String, studentName: String): String {
         return "teacher_doman_plan/$studentId/${android.net.Uri.encode(studentName)}"
+    }
+
+    fun teacherPlanAssignmentRoute(studentId: String? = null, studentName: String? = null): String {
+        if (studentId.isNullOrBlank()) return "teacher_plan_assignment"
+        return "teacher_plan_assignment?studentId=${android.net.Uri.encode(studentId)}" +
+            "&studentName=${android.net.Uri.encode(studentName.orEmpty())}"
     }
 
     fun teacherProgressRoute(studentId: String, studentName: String): String {

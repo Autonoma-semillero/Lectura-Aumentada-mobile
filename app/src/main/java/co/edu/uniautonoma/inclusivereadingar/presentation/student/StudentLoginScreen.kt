@@ -20,8 +20,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Help
 import androidx.compose.material.icons.rounded.AutoStories
-import androidx.compose.material.icons.rounded.Mail
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,11 +63,11 @@ fun StudentLoginRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     StudentLoginScreen(
-        email = uiState.email,
+        identifier = uiState.identifier,
         password = uiState.password,
         isLoading = uiState.isLoading,
         errorMessage = uiState.errorMessage,
-        onEmailChange = viewModel::updateEmail,
+        onIdentifierChange = viewModel::updateIdentifier,
         onPasswordChange = viewModel::updatePassword,
         onLoginClick = { viewModel.login(onLoginSuccess) },
         onTeacherLoginClick = onTeacherLoginClick
@@ -76,11 +76,11 @@ fun StudentLoginRoute(
 
 @Composable
 fun StudentLoginScreen(
-    email: String,
+    identifier: String,
     password: String,
     isLoading: Boolean,
     errorMessage: String?,
-    onEmailChange: (String) -> Unit,
+    onIdentifierChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onLoginClick: () -> Unit,
     onTeacherLoginClick: () -> Unit
@@ -162,11 +162,11 @@ fun StudentLoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             StudentField(
-                value = email,
-                onValueChange = onEmailChange,
-                label = "Correo electrónico",
-                placeholder = "student@lectura.app",
-                leadingIcon = Icons.Rounded.Mail,
+                value = identifier,
+                onValueChange = onIdentifierChange,
+                label = "Usuario o correo electrónico",
+                placeholder = "ana.garcia o student@lectura.app",
+                leadingIcon = Icons.Rounded.Person,
                 isPassword = false
             )
 
