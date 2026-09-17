@@ -20,7 +20,7 @@ permissions:
 
 concurrency:
   group: android-release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish-apk:
@@ -117,10 +117,11 @@ jobs:
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           CHECKSUM: ${{ steps.artifact.outputs.checksum }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git notes --ref=releases add -f \
-            -m "Published ${RELEASE_TAG}; APK SHA-256 ${CHECKSUM}" \
+            -m "Published ${RELEASE_TAG}; workflow ${WORKFLOW_SHA}; APK SHA-256 ${CHECKSUM}" \
             "${RELEASE_TAG}^{commit}"
           git push origin refs/notes/releases
