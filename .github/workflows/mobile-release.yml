@@ -86,7 +86,7 @@ jobs:
 
           **Tamaño del APK:** ${size}
 
-          **SHA-256:** `${checksum}`
+          **SHA-256:** ${checksum}
 
           > APK para instalación y validación interna, firmado con el certificado Android Debug. No es un artefacto firmado para Google Play.
           EOF
