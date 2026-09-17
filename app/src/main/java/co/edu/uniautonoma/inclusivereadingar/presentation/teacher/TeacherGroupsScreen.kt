@@ -78,6 +78,8 @@ fun TeacherGroupsRoute(onBack: () -> Unit) {
         onDismissEditor = viewModel::dismissEditor,
         onConfirmArchive = viewModel::confirmArchive,
         onCancelArchive = viewModel::cancelArchive,
+        onUnassignedQueryChange = viewModel::onUnassignedQueryChange,
+        onEditorQueryChange = viewModel::onEditorQueryChange,
         onDismissMessage = viewModel::dismissMessage,
         onRetry = viewModel::load
     )
@@ -94,6 +96,8 @@ fun TeacherGroupsScreen(
     onDismissEditor: () -> Unit,
     onConfirmArchive: () -> Unit,
     onCancelArchive: () -> Unit,
+    onUnassignedQueryChange: (String) -> Unit,
+    onEditorQueryChange: (String) -> Unit,
     onDismissMessage: () -> Unit,
     onRetry: () -> Unit
 ) {
@@ -108,8 +112,15 @@ fun TeacherGroupsScreen(
                     CircularProgressIndicator(color = Color(0xFFE53734))
                 }
 
-                uiState.groups.isEmpty() && uiState.students.isEmpty() -> EmptyGroups(onRetry)
-                else -> GroupsContent(uiState, onEdit, onArchive)
+                !uiState.errorMessage.isNullOrBlank() &&
+                    uiState.groups.isEmpty() &&
+                    uiState.unassignedResults.isEmpty() -> EmptyGroups(onRetry)
+                else -> GroupsContent(
+                    uiState = uiState,
+                    onEdit = onEdit,
+                    onArchive = onArchive,
+                    onUnassignedQueryChange = onUnassignedQueryChange
+                )
             }
         }
 
@@ -143,8 +154,11 @@ fun TeacherGroupsScreen(
     if (uiState.showEditor) {
         GroupEditorDialog(
             group = uiState.editingGroup,
-            students = uiState.students,
+            query = uiState.editorQuery,
+            students = uiState.editorResults,
+            isSearching = uiState.isSearchingEditor,
             isSaving = uiState.isSaving,
+            onQueryChange = onEditorQueryChange,
             onDismiss = onDismissEditor,
             onSave = onSave
         )
@@ -185,15 +199,20 @@ private fun GroupsHeader(onBack: () -> Unit) {
 private fun GroupsContent(
     uiState: TeacherGroupsUiState,
     onEdit: (StudentGroup) -> Unit,
-    onArchive: (StudentGroup) -> Unit
+    onArchive: (StudentGroup) -> Unit,
+    onUnassignedQueryChange: (String) -> Unit
 ) {
-    val studentsById = uiState.students.associateBy { it.id }
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            OrphanStudentsCard(uiState.unassignedStudents)
+            OrphanStudentsCard(
+                query = uiState.unassignedQuery,
+                students = uiState.unassignedResults,
+                isSearching = uiState.isSearchingUnassigned,
+                onQueryChange = onUnassignedQueryChange
+            )
         }
         item {
             Text(
@@ -204,26 +223,70 @@ private fun GroupsContent(
             )
         }
         items(uiState.groups, key = { it.id }) { group ->
-            GroupCard(group, studentsById, onEdit, onArchive)
+            GroupCard(group, uiState.knownStudents, onEdit, onArchive)
         }
         item { Spacer(Modifier.height(88.dp)) }
     }
 }
 
 @Composable
-private fun OrphanStudentsCard(students: List<AudienceStudent>) {
+private fun OrphanStudentsCard(
+    query: String,
+    students: List<AudienceStudent>,
+    isSearching: Boolean,
+    onQueryChange: (String) -> Unit
+) {
+    val visibleStudents = students.take(8)
     Surface(shape = RoundedCornerShape(22.dp), color = Color(0xFFFFE9E6)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Rounded.PersonOff, null, tint = Color(0xFFE53734))
-                Text("Sin grupo · ${students.size}", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text("Estudiantes sin grupo", fontWeight = FontWeight.Bold, fontSize = 17.sp)
             }
-            Text(
-                if (students.isEmpty()) "Todos los estudiantes pertenecen al menos a un grupo."
-                else students.take(6).joinToString(" · ") { it.label } + if (students.size > 6) " · …" else "",
-                color = Color(0xFF64514F),
-                fontSize = 13.sp
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Buscar por nombre, usuario o correo") },
+                trailingIcon = {
+                    if (isSearching) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp)
             )
+            Text(
+                if (query.isBlank()) {
+                    "Sugerencias sin grupo. Escribe para consultar más estudiantes."
+                } else {
+                    "Mostrando ${visibleStudents.size} de ${students.size} coincidencia(s) recibidas."
+                },
+                color = Color(0xFF64514F),
+                fontSize = 12.sp
+            )
+            if (!isSearching && students.isEmpty()) {
+                Text(
+                    if (query.isBlank()) "No hay sugerencias disponibles."
+                    else "No encontramos estudiantes sin grupo con esa búsqueda.",
+                    color = Color(0xFF64748B),
+                    fontSize = 13.sp
+                )
+            } else {
+                visibleStudents.forEach { student ->
+                    Column(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                        Text(student.label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(student.email, color = Color(0xFF64748B), fontSize = 11.sp)
+                    }
+                }
+                if (students.size > visibleStudents.size) {
+                    Text(
+                        "Refina la búsqueda para ver las demás coincidencias.",
+                        color = Color(0xFF64748B),
+                        fontSize = 11.sp
+                    )
+                }
+            }
         }
     }
 }
@@ -257,8 +320,14 @@ private fun GroupCard(
             }
             group.description?.let { Text(it, color = Color(0xFF475569), fontSize = 13.sp) }
             val memberNames = group.studentIds.mapNotNull { studentsById[it]?.label }
+            val hiddenMembers = group.studentIds.size - memberNames.size
             Text(
-                text = if (memberNames.isEmpty()) "Aún no tiene estudiantes" else memberNames.joinToString(" · "),
+                text = when {
+                    group.studentIds.isEmpty() -> "Aún no tiene estudiantes"
+                    memberNames.isEmpty() -> "Edita el grupo y busca para ver sus miembros"
+                    hiddenMembers > 0 -> memberNames.joinToString(" · ") + " · y $hiddenMembers más"
+                    else -> memberNames.joinToString(" · ")
+                },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 color = Color(0xFF64748B),
@@ -271,8 +340,11 @@ private fun GroupCard(
 @Composable
 private fun GroupEditorDialog(
     group: StudentGroup?,
+    query: String,
     students: List<AudienceStudent>,
+    isSearching: Boolean,
     isSaving: Boolean,
+    onQueryChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: (String, String?, Set<String>) -> Unit
 ) {
@@ -300,8 +372,38 @@ private fun GroupEditorDialog(
                     maxLines = 3
                 )
                 Text("Estudiantes (${selected.size})", fontWeight = FontWeight.Bold)
-                if (students.isEmpty()) {
-                    Text("No hay estudiantes disponibles", color = Color(0xFF64748B))
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    label = { Text("Buscar estudiante") },
+                    trailingIcon = {
+                        if (isSearching) {
+                            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        }
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    if (query.isBlank()) {
+                        "Sugerencias actuales. Busca por nombre, usuario o correo para encontrar más."
+                    } else {
+                        "Mostrando ${students.size} coincidencia(s) para esta búsqueda."
+                    },
+                    color = Color(0xFF64748B),
+                    fontSize = 11.sp
+                )
+                val visibleIds = students.mapTo(mutableSetOf()) { it.id }
+                val selectedOutsideSearch = selected - visibleIds
+                if (selectedOutsideSearch.isNotEmpty()) {
+                    Text(
+                        "${selectedOutsideSearch.size} miembro(s) seleccionado(s) no aparecen en esta búsqueda y se conservarán.",
+                        color = Color(0xFF64748B),
+                        fontSize = 11.sp
+                    )
+                }
+                if (!isSearching && students.isEmpty()) {
+                    Text("No hay coincidencias", color = Color(0xFF64748B))
                 } else {
                     LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp)) {
                         items(students, key = { it.id }) { student ->

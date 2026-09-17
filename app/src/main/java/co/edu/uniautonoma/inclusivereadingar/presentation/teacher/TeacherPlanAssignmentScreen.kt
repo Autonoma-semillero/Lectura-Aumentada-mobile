@@ -39,6 +39,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -50,6 +51,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.edu.uniautonoma.inclusivereadingar.appContainer
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AudienceGroup
@@ -76,8 +80,18 @@ fun TeacherPlanAssignmentRoute(
         )
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(preselectedStudentId) {
         viewModel.load(preselectedStudentId, preselectedStudentName)
+    }
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshAudience()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     TeacherPlanAssignmentScreen(
@@ -110,6 +124,10 @@ fun TeacherPlanAssignmentScreen(
     onDismissError: () -> Unit,
     onRetry: () -> Unit
 ) {
+    val hasInitialLoadError = !uiState.isLoading &&
+        uiState.errorMessage != null &&
+        uiState.categories.isEmpty() &&
+        uiState.searchItems.isEmpty()
     Box(Modifier.fillMaxSize().background(Color(0xFFFFF8F7))) {
         Column(Modifier.fillMaxSize()) {
             AssignmentHeader(onBack, onManageGroups)
@@ -117,6 +135,11 @@ fun TeacherPlanAssignmentScreen(
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Color(0xFFE53734))
                 }
+            } else if (hasInitialLoadError) {
+                InitialAssignmentError(
+                    message = requireNotNull(uiState.errorMessage),
+                    onRetry = onRetry
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f).padding(horizontal = 20.dp),
@@ -215,17 +238,15 @@ fun TeacherPlanAssignmentScreen(
             }
         }
 
-        uiState.errorMessage?.let { message ->
+        uiState.errorMessage?.takeUnless { hasInitialLoadError }?.let { message ->
             Surface(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp).clickable(
-                    onClick = if (uiState.categories.isEmpty() && uiState.searchItems.isEmpty()) onRetry else onDismissError
-                ),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp).clickable(onClick = onDismissError),
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.errorContainer,
                 shadowElevation = 8.dp
             ) {
                 Text(
-                    message + if (uiState.categories.isEmpty() && uiState.searchItems.isEmpty()) " Toca para reintentar." else "",
+                    message,
                     Modifier.padding(16.dp),
                     color = MaterialTheme.colorScheme.onErrorContainer
                 )
@@ -233,6 +254,30 @@ fun TeacherPlanAssignmentScreen(
             LaunchedEffect(message) {
                 kotlinx.coroutines.delay(4_000)
                 onDismissError()
+            }
+        }
+    }
+}
+
+@Composable
+private fun InitialAssignmentError(message: String, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = MaterialTheme.colorScheme.errorContainer
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    message,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Button(onClick = onRetry) {
+                    Text("Reintentar")
+                }
             }
         }
     }

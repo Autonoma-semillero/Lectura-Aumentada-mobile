@@ -6,7 +6,10 @@ import androidx.lifecycle.viewModelScope
 import co.edu.uniautonoma.inclusivereadingar.data.repository.GroupsDataSource
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AudienceStudent
 import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentGroup
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,22 +19,27 @@ data class TeacherGroupsUiState(
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
     val groups: List<StudentGroup> = emptyList(),
-    val students: List<AudienceStudent> = emptyList(),
+    val unassignedQuery: String = "",
+    val unassignedResults: List<AudienceStudent> = emptyList(),
+    val isSearchingUnassigned: Boolean = false,
+    val editorQuery: String = "",
+    val editorResults: List<AudienceStudent> = emptyList(),
+    val isSearchingEditor: Boolean = false,
+    val knownStudents: Map<String, AudienceStudent> = emptyMap(),
     val showEditor: Boolean = false,
     val editingGroup: StudentGroup? = null,
     val archiveConfirmGroup: StudentGroup? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null
-) {
-    val unassignedStudents: List<AudienceStudent>
-        get() = students.filter { it.unassigned || it.groupIds.isEmpty() }
-}
+)
 
 class TeacherGroupsViewModel(
     private val repository: GroupsDataSource
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(TeacherGroupsUiState())
     val uiState: StateFlow<TeacherGroupsUiState> = _uiState.asStateFlow()
+    private var unassignedSearchJob: Job? = null
+    private var editorSearchJob: Job? = null
 
     init {
         load()
@@ -39,16 +47,24 @@ class TeacherGroupsViewModel(
 
     fun load() {
         viewModelScope.launch {
+            val unassignedQuery = _uiState.value.unassignedQuery
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             runCatching {
                 val groups = async { repository.getGroups(status = "active") }
-                val audience = async { repository.searchAudience(q = "", limit = 100) }
+                val audience = async {
+                    repository.searchAudience(
+                        q = unassignedQuery,
+                        limit = 30,
+                        unassigned = true
+                    )
+                }
                 groups.await() to audience.await().items.filterIsInstance<AudienceStudent>()
             }.onSuccess { (groups, students) ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     groups = groups.sortedBy { it.name.lowercase() },
-                    students = students.sortedBy { it.label.lowercase() },
+                    unassignedResults = students.sortedBy { it.label.lowercase() },
+                    knownStudents = _uiState.value.knownStudents + students.associateBy { it.id },
                     errorMessage = null
                 )
             }.onFailure { error ->
@@ -61,16 +77,70 @@ class TeacherGroupsViewModel(
     }
 
     fun openCreate() {
-        _uiState.value = _uiState.value.copy(showEditor = true, editingGroup = null)
+        _uiState.value = _uiState.value.copy(
+            showEditor = true,
+            editingGroup = null,
+            editorQuery = "",
+            editorResults = emptyList()
+        )
+        searchEditorStudents("")
     }
 
     fun openEdit(group: StudentGroup) {
-        _uiState.value = _uiState.value.copy(showEditor = true, editingGroup = group)
+        _uiState.value = _uiState.value.copy(
+            showEditor = true,
+            editingGroup = group,
+            editorQuery = "",
+            editorResults = emptyList()
+        )
+        searchEditorStudents("")
     }
 
     fun dismissEditor() {
         if (_uiState.value.isSaving) return
-        _uiState.value = _uiState.value.copy(showEditor = false, editingGroup = null)
+        editorSearchJob?.cancel()
+        _uiState.value = _uiState.value.copy(
+            showEditor = false,
+            editingGroup = null,
+            editorQuery = "",
+            editorResults = emptyList(),
+            isSearchingEditor = false
+        )
+    }
+
+    fun onUnassignedQueryChange(query: String) {
+        _uiState.value = _uiState.value.copy(
+            unassignedQuery = query,
+            isSearchingUnassigned = true
+        )
+        unassignedSearchJob?.cancel()
+        unassignedSearchJob = viewModelScope.launch {
+            delay(250)
+            try {
+                val students = repository.searchAudience(
+                    q = query,
+                    limit = 30,
+                    unassigned = true
+                ).items.filterIsInstance<AudienceStudent>()
+                _uiState.value = _uiState.value.copy(
+                    isSearchingUnassigned = false,
+                    unassignedResults = students,
+                    knownStudents = _uiState.value.knownStudents + students.associateBy { it.id }
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(
+                    isSearchingUnassigned = false,
+                    errorMessage = error.toUiMessage("No fue posible buscar estudiantes sin grupo.")
+                )
+            }
+        }
+    }
+
+    fun onEditorQueryChange(query: String) {
+        _uiState.value = _uiState.value.copy(editorQuery = query)
+        searchEditorStudents(query)
     }
 
     fun saveGroup(name: String, description: String?, desiredStudentIds: Set<String>) {
@@ -140,6 +210,33 @@ class TeacherGroupsViewModel(
 
     fun dismissMessage() {
         _uiState.value = _uiState.value.copy(errorMessage = null, successMessage = null)
+    }
+
+    private fun searchEditorStudents(query: String) {
+        _uiState.value = _uiState.value.copy(isSearchingEditor = true)
+        editorSearchJob?.cancel()
+        editorSearchJob = viewModelScope.launch {
+            delay(250)
+            try {
+                val students = repository.searchAudience(
+                    q = query,
+                    limit = 50,
+                    unassigned = null
+                ).items.filterIsInstance<AudienceStudent>()
+                _uiState.value = _uiState.value.copy(
+                    isSearchingEditor = false,
+                    editorResults = students,
+                    knownStudents = _uiState.value.knownStudents + students.associateBy { it.id }
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                _uiState.value = _uiState.value.copy(
+                    isSearchingEditor = false,
+                    errorMessage = error.toUiMessage("No fue posible buscar estudiantes.")
+                )
+            }
+        }
     }
 }
 

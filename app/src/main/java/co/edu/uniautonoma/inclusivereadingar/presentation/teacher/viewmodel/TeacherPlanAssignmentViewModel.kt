@@ -12,6 +12,7 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.AudienceStudent
 import co.edu.uniautonoma.inclusivereadingar.domain.model.BulkPlanGenerationResult
 import co.edu.uniautonoma.inclusivereadingar.domain.model.Category
 import co.edu.uniautonoma.inclusivereadingar.domain.model.PlanAudienceSelection
+import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentGroup
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
@@ -50,6 +51,7 @@ class TeacherPlanAssignmentViewModel(
     private val _uiState = MutableStateFlow(TeacherPlanAssignmentUiState())
     val uiState: StateFlow<TeacherPlanAssignmentUiState> = _uiState.asStateFlow()
     private var searchJob: Job? = null
+    private var refreshJob: Job? = null
     private var loaded = false
 
     fun load(preselectedStudentId: String? = null, preselectedStudentName: String? = null) {
@@ -60,9 +62,10 @@ class TeacherPlanAssignmentViewModel(
             runCatching {
                 val categories = async { contentRepository.getCategories() }
                 val audience = async { groupsRepository.searchAudience("", 100) }
-                categories.await() to audience.await().items
-            }.onSuccess { (categories, items) ->
-                val groups = items.filterIsInstance<AudienceGroup>().associateBy { it.id }
+                val groups = async { groupsRepository.getGroups(status = "active") }
+                Triple(categories.await(), audience.await().items, groups.await())
+            }.onSuccess { (categories, items, groupModels) ->
+                val groups = groupModels.map(::toAudienceGroup).associateBy { it.id }
                 val students = items.filterIsInstance<AudienceStudent>().associateBy { it.id }.toMutableMap()
                 val selectedIds = preselectedStudentId?.takeIf { it.isNotBlank() }?.let(::setOf).orEmpty()
                 if (!preselectedStudentId.isNullOrBlank() && preselectedStudentId !in students) {
@@ -78,7 +81,7 @@ class TeacherPlanAssignmentViewModel(
                 }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    searchItems = items,
+                    searchItems = mergeResults(items, groups.values, ""),
                     knownGroups = groups,
                     knownStudents = students,
                     categories = categories,
@@ -96,6 +99,7 @@ class TeacherPlanAssignmentViewModel(
     }
 
     fun onQueryChange(query: String) {
+        refreshJob?.cancel()
         _uiState.value = _uiState.value.copy(query = query, isSearching = true)
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
@@ -194,15 +198,81 @@ class TeacherPlanAssignmentViewModel(
         load()
     }
 
+    fun refreshAudience() {
+        val state = _uiState.value
+        if (!loaded || state.isLoading || state.isGenerating) return
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isSearching = true)
+            runCatching {
+                val audience = async { groupsRepository.searchAudience(state.query, 50).items }
+                val groups = async { groupsRepository.getGroups(status = "active") }
+                audience.await() to groups.await()
+            }.onSuccess { (items, groupModels) ->
+                val activeGroups = groupModels.map(::toAudienceGroup).associateBy { it.id }
+                val students = items.filterIsInstance<AudienceStudent>()
+                val currentSelection = _uiState.value.selection
+                _uiState.value = _uiState.value.copy(
+                    isSearching = false,
+                    searchItems = mergeResults(items, activeGroups.values, state.query),
+                    knownGroups = activeGroups,
+                    knownStudents = _uiState.value.knownStudents + students.associateBy { it.id },
+                    selection = currentSelection.copy(
+                        groupIds = currentSelection.groupIds.intersect(activeGroups.keys)
+                    )
+                )
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
+                _uiState.value = _uiState.value.copy(
+                    isSearching = false,
+                    errorMessage = error.toUiMessage("No fue posible actualizar estudiantes y grupos.")
+                )
+            }
+        }
+    }
+
     private fun mergeSearchItems(items: List<AudienceSearchItem>) {
         val state = _uiState.value
+        val knownGroups = state.knownGroups + items.filterIsInstance<AudienceGroup>().associateBy { it.id }
         _uiState.value = state.copy(
             isSearching = false,
-            searchItems = items,
-            knownGroups = state.knownGroups + items.filterIsInstance<AudienceGroup>().associateBy { it.id },
+            searchItems = mergeResults(items, knownGroups.values, state.query),
+            knownGroups = knownGroups,
             knownStudents = state.knownStudents + items.filterIsInstance<AudienceStudent>().associateBy { it.id }
         )
     }
+
+    private fun mergeResults(
+        remoteItems: List<AudienceSearchItem>,
+        groups: Collection<AudienceGroup>,
+        query: String
+    ): List<AudienceSearchItem> {
+        val normalizedQuery = query.trim().lowercase()
+        val students = remoteItems.filterIsInstance<AudienceStudent>()
+        val matchingGroups = groups.filter { group ->
+            normalizedQuery.isBlank() ||
+                group.name.lowercase().contains(normalizedQuery) ||
+                group.description?.lowercase()?.contains(normalizedQuery) == true
+        }
+        return (students + matchingGroups)
+            .distinctBy { it.audienceKey }
+            .sortedBy { item ->
+                when (item) {
+                    is AudienceGroup -> item.name.lowercase()
+                    is AudienceStudent -> item.label.lowercase()
+                }
+            }
+    }
+
+    private fun toAudienceGroup(group: StudentGroup): AudienceGroup = AudienceGroup(
+        audienceKey = "group:${group.id}",
+        id = group.id,
+        name = group.name,
+        description = group.description,
+        teacherId = group.teacherId,
+        status = group.status,
+        studentIds = group.studentIds
+    )
 
     private fun Set<String>.toggle(value: String): Set<String> =
         if (value in this) this - value else this + value
