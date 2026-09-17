@@ -111,8 +111,6 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     // Android's org.json classes are stubs in local JVM tests; use the reference implementation.
     testImplementation("org.json:json:20260814")
-    // Android's org.json classes are stubs in local JVM tests; use the real implementation.
-    testImplementation("org.json:json:20260814")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
