@@ -21,3 +21,5 @@ keystore.properties
 .kotlin/
 .DS_Store
 **/.DS_Store
+.claude
+webar/node_modules/

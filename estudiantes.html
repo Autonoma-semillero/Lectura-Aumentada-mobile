@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&amp;family=Lexend:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#fadcd8",
+                    "surface-container-high": "#ffe2de",
+                    "secondary": "#0060ac",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed-dim": "#a4c9ff",
+                    "on-secondary-fixed-variant": "#004883",
+                    "surface-container": "#ffe9e6",
+                    "surface-bright": "#fff8f7",
+                    "inverse-primary": "#ffb4ac",
+                    "on-primary-container": "#fffbff",
+                    "inverse-surface": "#3e2c2a",
+                    "primary-fixed-dim": "#ffb4ac",
+                    "on-primary": "#ffffff",
+                    "error": "#ba1a1a",
+                    "primary": "#b7131a",
+                    "outline-variant": "#e4beb9",
+                    "on-background": "#271716",
+                    "primary-container": "#db322f",
+                    "on-tertiary-container": "#4f3e00",
+                    "tertiary-fixed-dim": "#ebc23e",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-tint": "#bb171c",
+                    "on-tertiary-fixed-variant": "#574500",
+                    "inverse-on-surface": "#ffedea",
+                    "secondary-container": "#68abff",
+                    "tertiary-container": "#cda722",
+                    "background": "#fff8f7",
+                    "surface": "#fff8f7",
+                    "tertiary-fixed": "#ffe087",
+                    "surface-container-low": "#fff0ee",
+                    "on-surface-variant": "#5b403d",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed": "#d4e3ff",
+                    "tertiary": "#735c00",
+                    "on-secondary-fixed": "#001c39",
+                    "outline": "#906f6c",
+                    "on-tertiary": "#ffffff",
+                    "surface-dim": "#f1d3d0",
+                    "on-primary-fixed-variant": "#93000d",
+                    "primary-fixed": "#ffdad6",
+                    "on-tertiary-fixed": "#241a00",
+                    "on-primary-fixed": "#410002",
+                    "on-error": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "on-secondary-container": "#003e73",
+                    "on-surface": "#271716",
+                    "surface-container-highest": "#fadcd8"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-padding": "24px",
+                    "xs": "4px",
+                    "unit": "8px",
+                    "lg": "24px",
+                    "xl": "32px",
+                    "sm": "8px",
+                    "md": "16px",
+                    "gutter": "16px"
+            },
+            "fontFamily": {
+                    "title-lg": ["Poppins"],
+                    "emphasis-word": ["lexend"],
+                    "body-lg": ["lexend"],
+                    "title-xl": ["Poppins"],
+                    "label-bold": ["lexend"],
+                    "body-md": ["lexend"]
+            },
+            "fontSize": {
+                    "title-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                    "emphasis-word": ["48px", {"lineHeight": "56px", "letterSpacing": "0.02em", "fontWeight": "700"}],
+                    "body-lg": ["20px", {"lineHeight": "30px", "fontWeight": "400"}],
+                    "title-xl": ["40px", {"lineHeight": "48px", "fontWeight": "700"}],
+                    "label-bold": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "body-md": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+        .progress-bar-glow {
+            box-shadow: 0 0 12px rgba(183, 19, 26, 0.3);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-surface dark:bg-surface-dim flex justify-between items-center px-lg h-20 shadow-[0_8px_16px_-4px_rgba(183,19,26,0.25)] dark:shadow-[0_8px_16px_-4px_rgba(183,19,26,0.4)]">
+<div class="flex items-center gap-md">
+<button class="p-xs hover:bg-surface-variant transition-colors active:scale-95 duration-200 rounded-full">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed">menu</span>
+</button>
+<h1 class="font-title-xl text-title-xl font-bold text-primary dark:text-primary-fixed">Mis estudiantes</h1>
+</div>
+<div class="flex items-center">
+<div class="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold border-2 border-primary">
+                T
+            </div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-container-padding pt-xl">
+<!-- Welcome Section -->
+<section class="mb-xl">
+<h2 class="font-title-lg text-title-lg text-on-surface mb-xs">Panel de Avance</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Sigue el progreso de lectura de tus pequeños exploradores.</p>
+</section>
+<!-- Students Bento Grid -->
+<div class="bento-grid">
+<!-- Student Card: Lucas García -->
+<div class="bg-surface-container-lowest p-lg rounded-lg border-b-4 border-primary/40 shadow-[0_8px_16px_rgba(0,0,0,0.05)] active:scale-95 transition-all duration-200 group">
+<div class="flex justify-between items-start mb-md">
+<div class="flex items-center gap-md">
+<div class="w-16 h-16 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-title-lg text-title-lg border-2 border-secondary shadow-lg">
+                            LG
+                        </div>
+<div>
+<h3 class="font-title-lg text-title-lg text-on-surface">Lucas García</h3>
+<div class="flex items-center gap-xs mt-xs">
+<span class="bg-[#C8E6C9] text-[#2E7D32] px-md py-1 rounded-full text-sm font-label-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                    ✓ Fase 2
+                                </span>
+</div>
+</div>
+</div>
+<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between items-center font-label-bold text-label-bold text-on-surface-variant">
+<span class="font-body-md text-body-md">12 de 20 palabras dominadas</span>
+<span class="text-primary">60%</span>
+</div>
+<div class="w-full bg-surface-variant h-4 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full progress-bar-glow transition-all duration-1000 ease-out" style="width: 60%"></div>
+</div>
+</div>
+<div class="mt-lg flex gap-md">
+<button class="flex-1 bg-primary text-on-primary py-md rounded-md font-label-bold shadow-md hover:brightness-110 active:translate-y-1 transition-all border-b-4 border-primary-fixed-variant">
+                        Ver Detalles
+                    </button>
+<button class="p-md rounded-md bg-secondary-container text-on-secondary-container border-b-4 border-secondary/40">
+<span class="material-symbols-outlined">chart_data</span>
+</button>
+</div>
+</div>
+<!-- Student Card: Sofía Ruiz -->
+<div class="bg-surface-container-lowest p-lg rounded-lg border-b-4 border-primary/40 shadow-[0_8px_16px_rgba(0,0,0,0.05)] active:scale-95 transition-all duration-200 group">
+<div class="flex justify-between items-start mb-md">
+<div class="flex items-center gap-md">
+<div class="w-16 h-16 rounded-full bg-tertiary-container flex items-center justify-center text-on-tertiary-container font-title-lg text-title-lg border-2 border-tertiary shadow-lg">
+                            SR
+                        </div>
+<div>
+<h3 class="font-title-lg text-title-lg text-on-surface">Sofía Ruiz</h3>
+<div class="flex items-center gap-xs mt-xs">
+<span class="bg-surface-variant text-on-surface-variant px-md py-1 rounded-full text-sm font-label-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">pending</span>
+                                    Fase 1
+                                </span>
+</div>
+</div>
+</div>
+<button class="material-symbols-outlined text-outline hover:text-primary transition-colors">more_vert</button>
+</div>
+<div class="space-y-sm">
+<div class="flex justify-between items-center font-label-bold text-label-bold text-on-surface-variant">
+<span class="font-body-md text-body-md">5 de 20 palabras dominadas</span>
+<span class="text-primary">25%</span>
+</div>
+<div class="w-full bg-surface-variant h-4 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full progress-bar-glow transition-all duration-1000 ease-out" style="width: 25%"></div>
+</div>
+</div>
+<div class="mt-lg flex gap-md">
+<button class="flex-1 bg-primary text-on-primary py-md rounded-md font-label-bold shadow-md hover:brightness-110 active:translate-y-1 transition-all border-b-4 border-primary-fixed-variant">
+                        Ver Detalles
+                    </button>
+<button class="p-md rounded-md bg-secondary-container text-on-secondary-container border-b-4 border-secondary/40">
+<span class="material-symbols-outlined">chart_data</span>
+</button>
+</div>
+</div>
+<!-- Empty Action Card -->
+<div class="border-2 border-dashed border-outline-variant p-lg rounded-lg flex flex-col items-center justify-center text-center gap-md bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="w-16 h-16 rounded-full bg-surface-variant flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-4xl">person_add</span>
+</div>
+<div>
+<h3 class="font-label-bold text-label-bold text-on-surface">Agregar Estudiante</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Registra un nuevo perfil</p>
+</div>
+</div>
+</div>
+<!-- Atmospheric Educational Decorative Element -->
+<div class="mt-xl p-lg rounded-xl bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/10 flex flex-col md:flex-row items-center gap-lg">
+<div class="w-24 h-24 flex-shrink-0">
+<img alt="Ilustración de libros" class="w-full h-full object-contain" data-alt="A whimsical 3D illustration of a friendly pile of anthropomorphic books with smiling faces and large expressive eyes. The books are rendered in a soft, squishy tactile style with vibrant primary colors. The lighting is warm and joyful, set against a clean white background with soft colorful shadows to match the educational child-friendly aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKWYaC-at5MIr3GdEVt-NnqnOTBguJIRDftZk-VnURpkjMip_wwkMEbjDbj_A_Wst0_TdykpeTkwqELzKaF3lD0xGQsC2GIqM56ZgphA2aTNi2tyXaIwY25gl5HMHaWkT22mva9VKe7XIsLqQGSUHwcDg0fywk-RRjm7MZtMBx4GVjOmvsK15Qsf_rvWOCk1M4OSeG3C0j4gzDL-R8CWI33NN6XLlLaQ_4sVUWag6w_0LsXiKdKcNc3ZzmyUaqKixaqWymlULoBxg"/>
+</div>
+<div class="text-center md:text-left">
+<h4 class="font-title-lg text-label-bold text-primary mb-xs">¡Sigue motivándolos!</h4>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">Recuerda que cada palabra nueva es un paso gigante hacia su independencia lectora. Usa los informes detallados para ver en qué sonidos necesitan más apoyo.</p>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center h-24 px-container-padding pb-safe bg-surface-container dark:bg-surface-container-highest border-t-0 shadow-[0_-8px_16px_rgba(0,0,0,0.05)] rounded-t-lg">
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs gap-xs hover:bg-surface-variant rounded-lg active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-bold text-label-bold">Inicio</span>
+</button>
+<!-- Active Item: Estudiantes -->
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-lg px-md py-xs gap-xs active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-label-bold text-label-bold">Estudiantes</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant px-md py-xs gap-xs hover:bg-surface-variant rounded-lg active:scale-90 transition-transform duration-150">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-bold text-label-bold">Perfil</span>
+</button>
+</nav>
+<script>
+        // Simple micro-interaction for cards
+        document.querySelectorAll('.bento-grid > div').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transform = 'translateY(-4px)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

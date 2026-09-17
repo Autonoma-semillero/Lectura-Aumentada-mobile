@@ -211,7 +211,7 @@ fun LoginScreen(
                         label = "Nombre de Usuario o Email",
                         value = username,
                         onValueChange = { username = it },
-                        placeholder = "Escribe tu nombre aquí",
+                        placeholder = "Usuario o correo electrónico",
                         icon = Icons.Rounded.Person,
                         isPassword = false
                     )

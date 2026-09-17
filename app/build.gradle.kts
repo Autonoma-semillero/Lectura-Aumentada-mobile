@@ -12,6 +12,17 @@ val keystoreProperties = Properties().apply {
         load(FileInputStream(keystorePropertiesFile))
     }
 }
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties().apply {
+    if (localPropertiesFile.exists()) {
+        load(FileInputStream(localPropertiesFile))
+    }
+}
+val backendBaseUrl = (
+    findProperty("backendBaseUrl") as String?
+        ?: localProperties.getProperty("backendBaseUrl")
+        ?: "https://lectura-aumentada-back-end-6kt1.vercel.app"
+).trim().removeSuffix("/")
 
 android {
     namespace = "co.edu.uniautonoma.inclusivereadingar"
@@ -24,6 +35,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
     }
 
     signingConfigs {
@@ -38,6 +50,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -45,6 +60,7 @@ android {
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
     }
 
@@ -68,6 +84,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
@@ -85,10 +102,17 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.4.2")
     implementation("androidx.camera:camera-lifecycle:1.4.2")
     implementation("androidx.camera:camera-view:1.4.2")
+    implementation("androidx.webkit:webkit:1.15.0")
+    // Bundled Latin model: OCR works immediately and camera frames never leave the device.
+    implementation(libs.mlkit.text.recognition)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Android's org.json classes are stubs in local JVM tests; use the reference implementation.
+    testImplementation("org.json:json:20260814")
+    // Android's org.json classes are stubs in local JVM tests; use the real implementation.
+    testImplementation("org.json:json:20260814")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
