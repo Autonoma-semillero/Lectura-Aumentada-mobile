@@ -39,6 +39,12 @@ jobs:
 
       - uses: android-actions/setup-android@v3
         if: steps.guard.outputs.configurado == 'true'
+        with:
+          # El default de la acción es "tools platform-tools", y el paquete
+          # `tools` ya no existe en el repositorio del SDK: sdkmanager sale con
+          # código 1 y el job muere. El runner ya trae el SDK instalado; aquí
+          # solo hacen falta las platform-tools y que se acepten las licencias.
+          packages: platform-tools
 
       - uses: gradle/actions/setup-gradle@v4
         if: steps.guard.outputs.configurado == 'true'
