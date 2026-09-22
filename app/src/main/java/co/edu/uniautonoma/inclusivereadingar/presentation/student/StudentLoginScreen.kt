@@ -41,7 +41,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -291,6 +293,12 @@ private fun StudentField(
                 tint = primary.copy(alpha = 0.75f)
             )
         },
+        // KeyboardType.Password impide que el teclado guarde la contrasena
+        // en su diccionario predictivo; PasswordVisualTransformation solo
+        // la oculta en pantalla.
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
+        ),
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         shape = RoundedCornerShape(18.dp),
         colors = OutlinedTextFieldDefaults.colors(
