@@ -112,6 +112,29 @@ jobs:
               --prerelease
           fi
 
+      - name: Publish stable "latest APK" alias
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          ASSET: ${{ steps.artifact.outputs.asset }}
+        run: |
+          latest_asset="lectura-aumentada-mobile-latest.apk"
+          cp "${ASSET}" "${latest_asset}"
+          if gh release view latest-apk >/dev/null 2>&1; then
+            gh release upload latest-apk "${latest_asset}" --clobber
+            gh release edit latest-apk \
+              --title "Lectura Aumentada Mobile (latest APK)" \
+              --notes "Siempre apunta al último APK publicado. Versión actual: ${RELEASE_TAG}." \
+              --prerelease
+          else
+            gh release create latest-apk "${latest_asset}" \
+              --target "${GITHUB_SHA}" \
+              --title "Lectura Aumentada Mobile (latest APK)" \
+              --notes "Siempre apunta al último APK publicado. Versión actual: ${RELEASE_TAG}." \
+              --prerelease
+          fi
+
       - name: Record successful publication
         shell: bash
         env:
