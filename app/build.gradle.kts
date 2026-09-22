@@ -52,6 +52,8 @@ android {
     buildTypes {
         debug {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
+            // Genera el informe JaCoCo que consume SonarCloud.
+            enableUnitTestCoverage = true
         }
         release {
             isMinifyEnabled = false
@@ -119,4 +121,17 @@ dependencies {
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+}
+
+sonar {
+    properties {
+        property(
+            "sonar.coverage.jacoco.xmlReportPaths",
+            layout.buildDirectory
+                .file("reports/coverage/test/debug/report.xml")
+                .get()
+                .asFile
+                .path,
+        )
+    }
 }
