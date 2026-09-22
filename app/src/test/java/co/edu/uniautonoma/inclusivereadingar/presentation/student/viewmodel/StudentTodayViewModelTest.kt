@@ -39,6 +39,8 @@ class StudentTodayViewModelTest {
         assertThat(state.planName).isEqualTo("Plan Nivel 1")
         assertThat(state.activities).hasSize(1)
         assertThat(state.activities.first().pendingSessionsCount).isEqualTo(3)
+        assertThat(state.activities.first().categoryName).isEqualTo("Cocina")
+        assertThat(dataSource.requestedPlan).isEqualTo(plan())
     }
 
     @Test
@@ -52,6 +54,7 @@ class StudentTodayViewModelTest {
         advanceUntilIdle()
 
         assertThat(viewModel.uiState.value).isEqualTo(StudentTodayUiState.NoActivePlan)
+        assertThat(dataSource.activitiesRequests).isEqualTo(0)
     }
 
     @Test
@@ -136,6 +139,9 @@ class StudentTodayViewModelTest {
         planId = "plan-1",
         studentId = "student-1",
         categoryId = "cat-1",
+        studyPlanId = "plan-1",
+        studyPlanLevelId = "level-1",
+        categoryName = "Cocina",
         targetCardsCount = 5,
         targetSessionsCount = 1,
         cardsCount = 5,
@@ -153,12 +159,21 @@ private class FakeStudentTodayDataSource(
     private val planFailure: Throwable? = null,
     private val activitiesFailure: Throwable? = null
 ) : StudentTodayDataSource {
+    var activitiesRequests: Int = 0
+        private set
+    var requestedPlan: ActiveStudyPlan? = null
+        private set
+
     override suspend fun getActivePlanForCurrentStudent(): ActiveStudyPlan? {
         planFailure?.let { throw it }
         return plan
     }
 
-    override suspend fun getTodayActivitiesForCurrentStudent(): TodayActivitiesResult {
+    override suspend fun getTodayActivitiesForCurrentStudent(
+        activePlan: ActiveStudyPlan
+    ): TodayActivitiesResult {
+        activitiesRequests++
+        requestedPlan = activePlan
         activitiesFailure?.let { throw it }
         return activities
     }

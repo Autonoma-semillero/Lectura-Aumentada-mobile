@@ -6,6 +6,7 @@ import co.edu.uniautonoma.inclusivereadingar.data.remote.DomanPlansApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.DomanSessionsApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.StudyPlansApi
 import co.edu.uniautonoma.inclusivereadingar.domain.model.ActiveStudyPlan
+import co.edu.uniautonoma.inclusivereadingar.domain.model.ActiveStudyPlanCategory
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AuthSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.BulkPlanGenerationResult
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DailyPlanSummary
@@ -13,6 +14,7 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSessionHistoryItem
 import co.edu.uniautonoma.inclusivereadingar.domain.model.OngoingDomanSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentProgressSummary
+import java.util.Locale
 
 /**
  * Data required by [co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.StudentTodayViewModel]
@@ -21,7 +23,7 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentProgressSummary
  */
 interface StudentTodayDataSource {
     suspend fun getActivePlanForCurrentStudent(): ActiveStudyPlan?
-    suspend fun getTodayActivitiesForCurrentStudent(): TodayActivitiesResult
+    suspend fun getTodayActivitiesForCurrentStudent(activePlan: ActiveStudyPlan): TodayActivitiesResult
 }
 
 data class TodayActivitiesResult(
@@ -108,12 +110,27 @@ class DomanRepository(
 
     override suspend fun getActivePlanForCurrentStudent(): ActiveStudyPlan? = getActiveStudyPlan(studentId = null)
 
-    override suspend fun getTodayActivitiesForCurrentStudent(): TodayActivitiesResult {
+    override suspend fun getTodayActivitiesForCurrentStudent(
+        activePlan: ActiveStudyPlan
+    ): TodayActivitiesResult {
         val session = requireSession()
         val today = todayDateString()
-        val plans = plansApi.getByDateRange(session.user.id, today, today, session.accessToken)
+        var plans = plansApi.getByDateRange(session.user.id, today, today, session.accessToken)
+        val missingCategories = missingActiveCategories(plans, activePlan)
+        if (missingCategories.isNotEmpty()) {
+            missingCategories.forEach { category ->
+                plansApi.generate(
+                    studentId = session.user.id,
+                    categoryId = category.id,
+                    force = false,
+                    accessToken = session.accessToken
+                )
+            }
+            plans = plansApi.getByDateRange(session.user.id, today, today, session.accessToken)
+        }
+        val matchingPlans = filterAndEnrichTodayActivities(plans, activePlan)
         var countsLoadFailed = false
-        val activities = plans.map { plan ->
+        val activities = matchingPlans.map { plan ->
             val counts = runCatching {
                 sessionsApi.getByPlanId(plan.planId, session.accessToken)
             }.getOrNull()
@@ -246,4 +263,38 @@ class DomanRepository(
     }
 
     fun deviceName(): String = "${Build.MANUFACTURER} ${Build.MODEL}".trim()
+}
+
+private fun String?.equalsIdentifier(other: String): Boolean =
+    this?.equals(other, ignoreCase = true) == true
+
+internal fun filterAndEnrichTodayActivities(
+    plans: List<DailyPlanSummary>,
+    activePlan: ActiveStudyPlan
+): List<DailyPlanSummary> {
+    val activeCategoriesById = activePlan.categories.associateBy {
+        it.id.lowercase(Locale.ROOT)
+    }
+    return plans.mapNotNull { plan ->
+        val belongsToActivePlan = plan.studyPlanId.equalsIdentifier(activePlan.planId)
+        val belongsToActiveLevel = activePlan.levelId == null ||
+            plan.studyPlanLevelId.equalsIdentifier(activePlan.levelId)
+        val category = activeCategoriesById[plan.categoryId.lowercase(Locale.ROOT)]
+        if (!belongsToActivePlan || !belongsToActiveLevel || category == null) {
+            null
+        } else {
+            plan.copy(categoryName = category.name)
+        }
+    }
+}
+
+internal fun missingActiveCategories(
+    plans: List<DailyPlanSummary>,
+    activePlan: ActiveStudyPlan
+): List<ActiveStudyPlanCategory> {
+    val materializedCategoryIds = filterAndEnrichTodayActivities(plans, activePlan)
+        .mapTo(mutableSetOf()) { it.categoryId.lowercase(Locale.ROOT) }
+    return activePlan.categories.filter { category ->
+        category.id.lowercase(Locale.ROOT) !in materializedCategoryIds
+    }
 }

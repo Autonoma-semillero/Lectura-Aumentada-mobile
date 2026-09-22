@@ -111,7 +111,13 @@ fun AppNavHost() {
 
         composable(route = AppDestinations.STUDENT_TODAY_ROUTE) {
             StudentTodayRoute(
-                onCategoryClick = { activity -> navController.navigateToDomanSession(activity.categoryId, activity.categoryId) },
+                sessionUserId = sessionState.session?.user?.id.orEmpty(),
+                onCategoryClick = { activity ->
+                    navController.navigateToDomanSession(
+                        activity.categoryId,
+                        activity.categoryName?.takeIf { it.isNotBlank() } ?: "Actividad de lectura"
+                    )
+                },
                 onOpenAr = {
                     navController.navigate(AppDestinations.PRACTICE_ROUTE) { launchSingleTop = true }
                 },

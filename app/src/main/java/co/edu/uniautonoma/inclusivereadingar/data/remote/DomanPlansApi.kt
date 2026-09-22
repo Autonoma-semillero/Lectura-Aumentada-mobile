@@ -111,7 +111,7 @@ class HttpDomanPlansApi(
         val jsonArray = JSONArray(response)
         return buildList {
             for (index in 0 until jsonArray.length()) {
-                add(parsePlanFromList(jsonArray.getJSONObject(index)))
+                add(parseDailyPlanListItem(jsonArray.getJSONObject(index)))
             }
         }
     }
@@ -125,55 +125,62 @@ class HttpDomanPlansApi(
         )
     }
 
-    private fun parsePlanFromList(json: JSONObject): DailyPlanSummary {
-        val cardsCount = json.optInt("target_cards_count", 0)
-        val sessionsCount = json.optInt("target_sessions_count", 0)
-        return DailyPlanSummary(
-            planId = json.getString("id"),
-            studentId = json.getString("student_id"),
-            categoryId = json.getString("category_id"),
-            targetCardsCount = cardsCount,
-            targetSessionsCount = sessionsCount,
-            cardsCount = cardsCount,
-            sessionsCount = sessionsCount,
-            pendingSessionsCount = 0,
-            completedSessionsCount = 0,
-            nextSessionId = null,
-            words = emptyList()
-        )
-    }
-
     private fun parsePlanSummary(rawJson: String): DailyPlanSummary {
         return parseDailyPlanSummary(JSONObject(rawJson))
     }
 }
 
-internal fun parseDailyPlanSummary(json: JSONObject): DailyPlanSummary {
-        // Handle both { "plan": {...}, "cards": [...] } and flat plan object
-        val plan = if (json.has("plan")) json.getJSONObject("plan") else json
-        val cardsArray = json.optJSONArray("cards")
-        val words = buildList {
-            if (cardsArray != null) {
-                for (index in 0 until cardsArray.length()) {
-                    add(cardsArray.getJSONObject(index).optString("word"))
-                }
-            }
-        }.filter { it.isNotBlank() }
+internal fun parseDailyPlanListItem(json: JSONObject): DailyPlanSummary {
+    val cardsCount = json.optInt("target_cards_count", 0)
+    val sessionsCount = json.optInt("target_sessions_count", 0)
+    return DailyPlanSummary(
+        planId = json.getString("id"),
+        studentId = json.getString("student_id"),
+        categoryId = json.getString("category_id"),
+        studyPlanId = json.optionalString("study_plan_id"),
+        studyPlanLevelId = json.optionalString("study_plan_level_id"),
+        targetCardsCount = cardsCount,
+        targetSessionsCount = sessionsCount,
+        cardsCount = cardsCount,
+        sessionsCount = sessionsCount,
+        pendingSessionsCount = 0,
+        completedSessionsCount = 0,
+        nextSessionId = null,
+        words = emptyList()
+    )
+}
 
-        return DailyPlanSummary(
-            planId = plan.getString("id"),
-            studentId = plan.getString("student_id"),
-            categoryId = plan.getString("category_id"),
-            targetCardsCount = plan.optInt("target_cards_count", words.size),
-            targetSessionsCount = plan.optInt("target_sessions_count", 0),
-            cardsCount = json.optInt("cards_count", words.size),
-            sessionsCount = json.optInt("sessions_count", 0),
-            pendingSessionsCount = json.optInt("pending_sessions_count", 0),
-            completedSessionsCount = json.optInt("completed_sessions_count", 0),
-            nextSessionId = json.optString("next_session_id").ifBlank { null },
-            words = words
-        )
-    }
+internal fun parseDailyPlanSummary(json: JSONObject): DailyPlanSummary {
+    // Handle both { "plan": {...}, "cards": [...] } and flat plan object
+    val plan = if (json.has("plan")) json.getJSONObject("plan") else json
+    val cardsArray = json.optJSONArray("cards")
+    val words = buildList {
+        if (cardsArray != null) {
+            for (index in 0 until cardsArray.length()) {
+                add(cardsArray.getJSONObject(index).optString("word"))
+            }
+        }
+    }.filter { it.isNotBlank() }
+
+    return DailyPlanSummary(
+        planId = plan.getString("id"),
+        studentId = plan.getString("student_id"),
+        categoryId = plan.getString("category_id"),
+        studyPlanId = plan.optionalString("study_plan_id"),
+        studyPlanLevelId = plan.optionalString("study_plan_level_id"),
+        targetCardsCount = plan.optInt("target_cards_count", words.size),
+        targetSessionsCount = plan.optInt("target_sessions_count", 0),
+        cardsCount = json.optInt("cards_count", words.size),
+        sessionsCount = json.optInt("sessions_count", 0),
+        pendingSessionsCount = json.optInt("pending_sessions_count", 0),
+        completedSessionsCount = json.optInt("completed_sessions_count", 0),
+        nextSessionId = json.optString("next_session_id").ifBlank { null },
+        words = words
+    )
+}
+
+private fun JSONObject.optionalString(name: String): String? =
+    if (isNull(name)) null else optString(name).trim().takeIf { it.isNotEmpty() }
 
 internal fun parseBulkPlanGenerationResult(rawJson: String): BulkPlanGenerationResult {
     val root = JSONObject(rawJson)

@@ -6,12 +6,10 @@ import androidx.lifecycle.viewModelScope
 import co.edu.uniautonoma.inclusivereadingar.data.remote.BackendException
 import co.edu.uniautonoma.inclusivereadingar.data.repository.StudentTodayDataSource
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DailyPlanSummary
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.supervisorScope
 
 /**
  * UI state for the single "today" screen shown to a student, merging the active study plan
@@ -52,19 +50,19 @@ class StudentTodayViewModel(
         viewModelScope.launch {
             _uiState.value = StudentTodayUiState.Loading
             runCatching {
-                // supervisorScope: a failure in one call must not cancel the sibling call before
-                // its own await() delivers the exception to this runCatching (plain async/await
-                // under a shared non-supervisor scope propagates child failures eagerly via
-                // structured-concurrency cancellation, bypassing this try/catch).
-                supervisorScope {
-                    val planDeferred = async { dataSource.getActivePlanForCurrentStudent() }
-                    val activitiesDeferred = async { dataSource.getTodayActivitiesForCurrentStudent() }
-                    planDeferred.await() to activitiesDeferred.await()
+                val plan = dataSource.getActivePlanForCurrentStudent()
+                if (plan == null) {
+                    null
+                } else {
+                    plan to dataSource.getTodayActivitiesForCurrentStudent(plan)
                 }
-            }.onSuccess { (plan, activitiesResult) ->
+            }.onSuccess { loadedToday ->
+                if (loadedToday == null) {
+                    _uiState.value = StudentTodayUiState.NoActivePlan
+                    return@onSuccess
+                }
+                val (plan, activitiesResult) = loadedToday
                 _uiState.value = when {
-                    plan == null -> StudentTodayUiState.NoActivePlan
-
                     activitiesResult.countsLoadFailed -> StudentTodayUiState.Error(
                         "No fue posible cargar tu actividad de hoy. Intenta de nuevo."
                     )

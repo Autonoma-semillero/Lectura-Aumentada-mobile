@@ -35,6 +35,13 @@ class SessionStore(private val context: Context) {
 
     suspend fun saveSession(session: AuthSession) {
         context.sessionDataStore.edit { preferences ->
+            val previousUserId = preferences[USER_ID]
+            if (previousUserId != null && previousUserId != session.user.id) {
+                preferences.remove(ONGOING_SESSION_ID)
+                preferences.remove(ONGOING_CATEGORY_ID)
+                preferences.remove(ONGOING_CATEGORY_NAME)
+                preferences.remove(ONGOING_CARD_INDEX)
+            }
             preferences[ACCESS_TOKEN] = session.accessToken
             preferences[USER_ID] = session.user.id
             preferences[USER_EMAIL] = session.user.email
