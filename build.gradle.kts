@@ -12,11 +12,29 @@ sonar {
         property("sonar.organization", "autonoma-semillero")
         property("sonar.projectName", "Lectura Aumentada Mobile")
         property("sonar.sourceEncoding", "UTF-8")
-        // El bundle WebAR se genera desde webar/src; analizar la copia de
-        // assets duplicaria los hallazgos, y vendor/ es codigo de terceros.
+        // - assets/webar se genera desde webar/src: analizar la copia
+        //   duplicaria cada hallazgo.
+        // - El resto de assets (modelos .glb, audio, texturas) son binarios;
+        //   Sonar intentaba leerlos como texto y avisaba de codificacion.
+        // - Las extensiones binarias se excluyen ademas globalmente para que
+        //   anadir recursos nuevos en otra carpeta no reintroduzca el ruido.
         property(
             "sonar.exclusions",
-            "app/src/main/assets/webar/**,webar/node_modules/**,**/build/**",
+            listOf(
+                "app/src/main/assets/webar/**",
+                "app/src/main/assets/models/**",
+                "app/src/main/assets/audio/**",
+                "webar/node_modules/**",
+                "**/build/**",
+                "**/*.glb",
+                "**/*.gltf",
+                "**/*.mp3",
+                "**/*.wav",
+                "**/*.png",
+                "**/*.jpg",
+                "**/*.webp",
+                "**/*.ttf",
+            ).joinToString(","),
         )
     }
 }
