@@ -31,7 +31,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.student.DomanSessionRo
 import co.edu.uniautonoma.inclusivereadingar.presentation.screens.WebArRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.SessionSummaryScreen
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.StudentLoginRoute
-import co.edu.uniautonoma.inclusivereadingar.presentation.student.ThemesRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.student.StudentTodayRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.SessionViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.SessionViewModelFactory
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.CategoryCardsRoute
@@ -81,7 +81,7 @@ fun AppNavHost() {
                 if (ongoing != null) {
                     navController.navigateToDomanSession(ongoing.categoryId, ongoing.categoryName)
                 } else {
-                    navController.navigateToThemes()
+                    navController.navigateToStudentToday()
                 }
             }
         }
@@ -109,9 +109,9 @@ fun AppNavHost() {
             )
         }
 
-        composable(route = AppDestinations.THEMES_ROUTE) {
-            ThemesRoute(
-                onThemeClick = { category -> navController.navigateToDomanSession(category.id, category.name) },
+        composable(route = AppDestinations.STUDENT_TODAY_ROUTE) {
+            StudentTodayRoute(
+                onCategoryClick = { activity -> navController.navigateToDomanSession(activity.categoryId, activity.categoryId) },
                 onOpenAr = {
                     navController.navigate(AppDestinations.PRACTICE_ROUTE) { launchSingleTop = true }
                 },
@@ -347,10 +347,10 @@ fun AppNavHost() {
             DomanSessionRoute(
                 categoryId = categoryId,
                 categoryName = categoryName,
-                onBackClick = navController::navigateBackOrThemes,
+                onBackClick = navController::navigateBackOrStudentToday,
                 onSessionCompleted = { cardsCount ->
                     navController.navigate(AppDestinations.sessionSummaryRoute(categoryName, cardsCount)) {
-                        popUpTo(AppDestinations.THEMES_ROUTE)
+                        popUpTo(AppDestinations.STUDENT_TODAY_ROUTE)
                     }
                 }
             )
@@ -366,7 +366,7 @@ fun AppNavHost() {
             SessionSummaryScreen(
                 categoryName = entry.arguments?.getString("categoryName").orEmpty(),
                 cardsCount = entry.arguments?.getInt("cardsCount") ?: 0,
-                onFinish = navController::navigateToThemes
+                onFinish = navController::navigateToStudentToday
             )
         }
     }
@@ -394,8 +394,8 @@ fun AppNavHost() {
     }
 }
 
-private fun NavHostController.navigateToThemes() {
-    navigate(AppDestinations.THEMES_ROUTE) {
+private fun NavHostController.navigateToStudentToday() {
+    navigate(AppDestinations.STUDENT_TODAY_ROUTE) {
         popUpTo(graph.findStartDestination().id) { inclusive = true }
         launchSingleTop = true
     }
@@ -456,9 +456,9 @@ private fun NavHostController.navigateToTeacherProgress(student: AppUser) {
     }
 }
 
-private fun NavHostController.navigateBackOrThemes() {
+private fun NavHostController.navigateBackOrStudentToday() {
     if (!popBackStack()) {
-        navigateToThemes()
+        navigateToStudentToday()
     }
 }
 

@@ -11,6 +11,7 @@ import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpDomanPlansApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpDomanSessionsApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpGroupsApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpProgressApi
+import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpStudyPlansApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpTeacherApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpWordCardsApi
 import co.edu.uniautonoma.inclusivereadingar.data.repository.AuthRepository
@@ -61,7 +62,8 @@ class AppContainer(context: Context) {
         DomanRepository(
             sessionStore = sessionStore,
             plansApi = HttpDomanPlansApi(httpClient),
-            sessionsApi = HttpDomanSessionsApi(httpClient)
+            sessionsApi = HttpDomanSessionsApi(httpClient),
+            studyPlansApi = HttpStudyPlansApi(httpClient)
         )
     }
 

@@ -4,6 +4,8 @@ import android.os.Build
 import co.edu.uniautonoma.inclusivereadingar.data.local.SessionStore
 import co.edu.uniautonoma.inclusivereadingar.data.remote.DomanPlansApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.DomanSessionsApi
+import co.edu.uniautonoma.inclusivereadingar.data.remote.StudyPlansApi
+import co.edu.uniautonoma.inclusivereadingar.domain.model.ActiveStudyPlan
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AuthSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.BulkPlanGenerationResult
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DailyPlanSummary
@@ -11,6 +13,21 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DomanSessionHistoryItem
 import co.edu.uniautonoma.inclusivereadingar.domain.model.OngoingDomanSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentProgressSummary
+
+/**
+ * Data required by [co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.StudentTodayViewModel]
+ * for the logged-in student. Kept as a narrow interface (instead of depending on the concrete
+ * [DomanRepository]) so it can be faked in JVM unit tests without a real [SessionStore]/[Context].
+ */
+interface StudentTodayDataSource {
+    suspend fun getActivePlanForCurrentStudent(): ActiveStudyPlan?
+    suspend fun getTodayActivitiesForCurrentStudent(): TodayActivitiesResult
+}
+
+data class TodayActivitiesResult(
+    val activities: List<DailyPlanSummary>,
+    val countsLoadFailed: Boolean
+)
 
 interface DomanSessionDataSource {
     suspend fun prepareSession(categoryId: String): DomanSession
@@ -28,8 +45,9 @@ interface DomanSessionDataSource {
 class DomanRepository(
     private val sessionStore: SessionStore,
     private val plansApi: DomanPlansApi,
-    private val sessionsApi: DomanSessionsApi
-) : DomanSessionDataSource {
+    private val sessionsApi: DomanSessionsApi,
+    private val studyPlansApi: StudyPlansApi
+) : DomanSessionDataSource, StudentTodayDataSource {
     override suspend fun prepareSession(categoryId: String): DomanSession {
         val session = requireSession()
         plansApi.generate(
@@ -61,14 +79,18 @@ class DomanRepository(
         plansApi.deletePlan(planId, session.accessToken)
     }
 
+    suspend fun getActiveStudyPlan(studentId: String? = null): ActiveStudyPlan? {
+        val session = requireSession()
+        return studyPlansApi.getActive(
+            studentId = studentId ?: session.user.id,
+            date = null,
+            accessToken = session.accessToken
+        )
+    }
+
     suspend fun getTodayPlans(studentId: String): List<DailyPlanSummary> {
         val session = requireSession()
-        val today = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            java.time.LocalDate.now().toString()
-        } else {
-            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                .format(java.util.Calendar.getInstance().time)
-        }
+        val today = todayDateString()
         val plans = plansApi.getByDateRange(studentId, today, today, session.accessToken)
         return plans.map { plan ->
             val counts = runCatching {
@@ -82,6 +104,38 @@ class DomanRepository(
                 )
             } else plan
         }
+    }
+
+    override suspend fun getActivePlanForCurrentStudent(): ActiveStudyPlan? = getActiveStudyPlan(studentId = null)
+
+    override suspend fun getTodayActivitiesForCurrentStudent(): TodayActivitiesResult {
+        val session = requireSession()
+        val today = todayDateString()
+        val plans = plansApi.getByDateRange(session.user.id, today, today, session.accessToken)
+        var countsLoadFailed = false
+        val activities = plans.map { plan ->
+            val counts = runCatching {
+                sessionsApi.getByPlanId(plan.planId, session.accessToken)
+            }.getOrNull()
+            if (counts != null) {
+                plan.copy(
+                    sessionsCount = counts.total,
+                    completedSessionsCount = counts.completed,
+                    pendingSessionsCount = counts.pending
+                )
+            } else {
+                countsLoadFailed = true
+                plan
+            }
+        }
+        return TodayActivitiesResult(activities = activities, countsLoadFailed = countsLoadFailed)
+    }
+
+    private fun todayDateString(): String = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        java.time.LocalDate.now().toString()
+    } else {
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            .format(java.util.Calendar.getInstance().time)
     }
 
     suspend fun generatePlan(studentId: String, categoryId: String? = null, force: Boolean = true): DailyPlanSummary {

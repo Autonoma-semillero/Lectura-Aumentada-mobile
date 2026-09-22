@@ -3,7 +3,7 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.navigation
 object AppDestinations {
     const val LOGIN_ROUTE = "student_login"
     const val TEACHER_LOGIN_ROUTE = "teacher_login"
-    const val THEMES_ROUTE = "themes"
+    const val STUDENT_TODAY_ROUTE = "student_today"
     const val DOMAN_SESSION_ROUTE = "doman_session/{categoryId}/{categoryName}"
     const val SESSION_SUMMARY_ROUTE = "session_summary/{categoryName}/{cardsCount}"
     const val TEACHER_THEMES_ROUTE = "teacher_themes"
