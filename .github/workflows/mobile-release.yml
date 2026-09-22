@@ -38,7 +38,8 @@ jobs:
           elif [[ -n "${REQUESTED_TAG}" ]]; then
             tag="${REQUESTED_TAG}"
           else
-            tag="v1.0.0"
+            echo "::error::No tag resolved: this trigger requires a tag ref or an explicit workflow_dispatch 'tag' input." >&2
+            exit 1
           fi
           echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
 
@@ -144,7 +145,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin refs/notes/releases:refs/notes/releases || true
           git notes --ref=releases add -f \
             -m "Published ${RELEASE_TAG}; workflow ${WORKFLOW_SHA}; APK SHA-256 ${CHECKSUM}" \
             "${RELEASE_TAG}^{commit}"
-          git push origin refs/notes/releases
+          git push origin refs/notes/releases || echo "::warning::Could not push release notes ref (non-blocking, release already published)."
