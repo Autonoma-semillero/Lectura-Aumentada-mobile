@@ -31,6 +31,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.student.DomanSessionRo
 import co.edu.uniautonoma.inclusivereadingar.presentation.screens.WebArRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.SessionSummaryScreen
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.StudentLoginRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.student.LiveStudentRoomRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.StudentTodayRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.SessionViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.SessionViewModelFactory
@@ -47,6 +48,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherPlanAss
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentProgressRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentsRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.WordCardCategoryListRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherLiveSessionRoute
 
 @Composable
 fun AppNavHost() {
@@ -81,7 +83,7 @@ fun AppNavHost() {
                 if (ongoing != null) {
                     navController.navigateToDomanSession(ongoing.categoryId, ongoing.categoryName)
                 } else {
-                    navController.navigateToStudentToday()
+                    navController.navigateToStudentLiveRoom()
                 }
             }
         }
@@ -125,6 +127,10 @@ fun AppNavHost() {
             )
         }
 
+        composable(route = AppDestinations.STUDENT_LIVE_ROOM_ROUTE) {
+            LiveStudentRoomRoute(onLogoutClick = { showLogoutDialog = true })
+        }
+
         composable(route = AppDestinations.PRACTICE_ROUTE) {
             WebArRoute(onBackClick = navController::popBackStack)
         }
@@ -135,8 +141,13 @@ fun AppNavHost() {
                 onCreateThemeClick = { navController.navigateToTeacherThemeForm() },
                 onEditThemeClick = { themeId -> navController.navigateToTeacherThemeForm(themeId) },
                 onWordCardsClick = navController::navigateToTeacherWordCards,
-                onStudentsClick = navController::navigateToTeacherStudents
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onLiveSessionClick = { navController.navigate(AppDestinations.TEACHER_LIVE_SESSION_ROUTE) }
             )
+        }
+
+        composable(route = AppDestinations.TEACHER_LIVE_SESSION_ROUTE) {
+            TeacherLiveSessionRoute(onBack = navController::navigateBackOrTeacherThemes)
         }
 
         composable(route = AppDestinations.TEACHER_STUDENTS_ROUTE) {
@@ -402,6 +413,13 @@ fun AppNavHost() {
 
 private fun NavHostController.navigateToStudentToday() {
     navigate(AppDestinations.STUDENT_TODAY_ROUTE) {
+        popUpTo(graph.findStartDestination().id) { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
+private fun NavHostController.navigateToStudentLiveRoom() {
+    navigate(AppDestinations.STUDENT_LIVE_ROOM_ROUTE) {
         popUpTo(graph.findStartDestination().id) { inclusive = true }
         launchSingleTop = true
     }

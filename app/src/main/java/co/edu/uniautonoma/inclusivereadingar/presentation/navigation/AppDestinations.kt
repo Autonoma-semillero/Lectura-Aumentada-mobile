@@ -4,9 +4,11 @@ object AppDestinations {
     const val LOGIN_ROUTE = "student_login"
     const val TEACHER_LOGIN_ROUTE = "teacher_login"
     const val STUDENT_TODAY_ROUTE = "student_today"
+    const val STUDENT_LIVE_ROOM_ROUTE = "student_live_room"
     const val DOMAN_SESSION_ROUTE = "doman_session/{categoryId}/{categoryName}"
     const val SESSION_SUMMARY_ROUTE = "session_summary/{categoryName}/{cardsCount}"
     const val TEACHER_THEMES_ROUTE = "teacher_themes"
+    const val TEACHER_LIVE_SESSION_ROUTE = "teacher_live_session"
     const val TEACHER_STUDENTS_ROUTE = "teacher_students"
     const val TEACHER_GROUPS_ROUTE = "teacher_groups"
     const val TEACHER_PLAN_ASSIGNMENT_ROUTE =

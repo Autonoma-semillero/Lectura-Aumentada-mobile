@@ -56,7 +56,8 @@ fun ManageThemesRoute(
     onCreateThemeClick: () -> Unit,
     onEditThemeClick: (String) -> Unit,
     onWordCardsClick: () -> Unit,
-    onStudentsClick: () -> Unit
+    onStudentsClick: () -> Unit,
+    onLiveSessionClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -75,7 +76,8 @@ fun ManageThemesRoute(
         onDeleteConfirm = viewModel::confirmDelete,
         onDeleteDismiss = viewModel::cancelDelete,
         onWordCardsClick = onWordCardsClick,
-        onStudentsClick = onStudentsClick
+        onStudentsClick = onStudentsClick,
+        onLiveSessionClick = onLiveSessionClick
     )
 }
 
@@ -90,7 +92,8 @@ fun ManageThemesScreen(
     onDeleteConfirm: () -> Unit,
     onDeleteDismiss: () -> Unit,
     onWordCardsClick: () -> Unit,
-    onStudentsClick: () -> Unit
+    onStudentsClick: () -> Unit,
+    onLiveSessionClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
 
@@ -121,6 +124,16 @@ fun ManageThemesScreen(
                         tint = primary
                     )
                 }
+            }
+
+            Button(
+                onClick = onLiveSessionClick,
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Text("Abrir sala en vivo")
             }
 
             when {

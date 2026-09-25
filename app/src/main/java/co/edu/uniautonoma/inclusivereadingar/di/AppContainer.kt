@@ -10,6 +10,7 @@ import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpDocenteApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpDomanPlansApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpDomanSessionsApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpGroupsApi
+import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpLiveDomanApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpProgressApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpStudyPlansApi
 import co.edu.uniautonoma.inclusivereadingar.data.remote.HttpTeacherApi
@@ -19,6 +20,7 @@ import co.edu.uniautonoma.inclusivereadingar.data.repository.BackendArAssetRepos
 import co.edu.uniautonoma.inclusivereadingar.data.repository.DocenteProgressRepository
 import co.edu.uniautonoma.inclusivereadingar.data.repository.DomanRepository
 import co.edu.uniautonoma.inclusivereadingar.data.repository.GroupsRepository
+import co.edu.uniautonoma.inclusivereadingar.data.repository.LiveDomanRepository
 import co.edu.uniautonoma.inclusivereadingar.data.repository.StudentContentRepository
 import co.edu.uniautonoma.inclusivereadingar.data.repository.TeacherContentRepository
 
@@ -71,6 +73,13 @@ class AppContainer(context: Context) {
         GroupsRepository(
             sessionStore = sessionStore,
             groupsApi = HttpGroupsApi(httpClient)
+        )
+    }
+
+    val liveDomanRepository: LiveDomanRepository by lazy {
+        LiveDomanRepository(
+            sessionStore = sessionStore,
+            api = HttpLiveDomanApi(httpClient)
         )
     }
 
