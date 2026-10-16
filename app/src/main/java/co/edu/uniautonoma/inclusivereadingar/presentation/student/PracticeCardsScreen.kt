@@ -2,12 +2,6 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.student
 
 import android.media.MediaPlayer
 import android.net.Uri
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,7 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,8 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +53,7 @@ import co.edu.uniautonoma.inclusivereadingar.domain.model.WordCard
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.PracticeCardsUiState
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.PracticeCardsViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.PracticeCardsViewModelFactory
+import kotlinx.coroutines.launch
 
 @Composable
 fun PracticeCardsRoute(
@@ -106,6 +99,7 @@ fun PracticeCardsScreen(
     onCardChanged: (Int) -> Unit
 ) {
     val pagerState = rememberPagerState(pageCount = { uiState.cards.size })
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Pager → ViewModel
     LaunchedEffect(pagerState.currentPage) {
@@ -121,7 +115,7 @@ fun PracticeCardsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Header
         Row(
@@ -136,7 +130,7 @@ fun PracticeCardsScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = "Volver",
-                    tint = Color(0xFFE53734)
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
             Text(
@@ -150,7 +144,7 @@ fun PracticeCardsScreen(
         when {
             uiState.isLoading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color(0xFFE53734))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
 
@@ -189,19 +183,30 @@ fun PracticeCardsScreen(
                         text = "No hay palabras disponibles para esta temática.",
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(24.dp),
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
             else -> {
-                // Progress dots
+                Text(
+                    text = "Tarjeta ${pagerState.currentPage + 1} de ${uiState.cards.size}",
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                // Progress and visible alternatives to the swipe gesture.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.Center
                 ) {
+                    IconButton(
+                        onClick = { scope.launch { pagerState.animateScrollToPage((pagerState.currentPage - 1).coerceAtLeast(0)) } },
+                        enabled = pagerState.currentPage > 0,
+                        modifier = Modifier.size(48.dp)
+                    ) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Palabra anterior") }
                     val dotCount = uiState.cards.size.coerceAtMost(7)
                     val activeIndex = pagerState.currentPage.coerceAtMost(6)
                     repeat(dotCount) { index ->
@@ -210,12 +215,17 @@ fun PracticeCardsScreen(
                                 .padding(horizontal = 4.dp)
                                 .size(10.dp)
                                 .background(
-                                    color = if (index == activeIndex) Color(0xFFE53734)
-                                    else Color(0xFFE5E7EB),
+                                    color = if (index == activeIndex) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.outlineVariant,
                                     shape = CircleShape
                                 )
                         )
                     }
+                    IconButton(
+                        onClick = { scope.launch { pagerState.animateScrollToPage((pagerState.currentPage + 1).coerceAtMost(uiState.cards.lastIndex)) } },
+                        enabled = pagerState.currentPage < uiState.cards.lastIndex,
+                        modifier = Modifier.size(48.dp)
+                    ) { Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = "Siguiente palabra") }
                 }
 
                 // Word pager
@@ -239,8 +249,8 @@ fun PracticeCardsScreen(
                         .height(60.dp),
                     shape = RoundedCornerShape(24.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE53734),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text(
@@ -256,31 +266,18 @@ fun PracticeCardsScreen(
 
 @Composable
 private fun WordCardPage(card: WordCard, backendBaseUrl: String) {
-    val infiniteTransition = rememberInfiniteTransition(label = "wordPulse")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = card.word.uppercase(),
-            color = Color(0xFFE53734),
+            color = MaterialTheme.colorScheme.primary,
             fontSize = 96.sp,
             fontWeight = FontWeight.ExtraBold,
             textAlign = TextAlign.Center,
             lineHeight = 100.sp,
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .graphicsLayer { scaleX = scale; scaleY = scale }
+            modifier = Modifier.padding(horizontal = 24.dp)
         )
 
         if (!card.audioUrl.isNullOrBlank()) {
@@ -299,6 +296,7 @@ private fun WordCardPage(card: WordCard, backendBaseUrl: String) {
 private fun AudioButton(audioUrl: String, backendBaseUrl: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
+    var audioError by remember(audioUrl) { mutableStateOf(false) }
     val player = remember { MediaPlayer() }
 
     DisposableEffect(audioUrl) {
@@ -313,23 +311,27 @@ private fun AudioButton(audioUrl: String, backendBaseUrl: String, modifier: Modi
         onClick = {
             if (!isPlaying) {
                 runCatching {
+                    audioError = false
                     player.reset()
                     player.setDataSource(context, Uri.parse(resolvedUrl))
-                    player.setOnPreparedListener { it.start() }
+                    player.setOnPreparedListener { it.start(); isPlaying = true }
                     player.setOnCompletionListener { isPlaying = false }
+                    player.setOnErrorListener { _, _, _ -> isPlaying = false; audioError = true; true }
                     player.prepareAsync()
-                    isPlaying = true
-                }
+                }.onFailure { audioError = true; isPlaying = false }
             }
         },
         modifier = modifier.size(56.dp)
     ) {
         Icon(
-            imageVector = if (isPlaying) Icons.Rounded.VolumeUp else Icons.Rounded.VolumeOff,
-            contentDescription = if (isPlaying) "Reproduciendo" else "Reproducir palabra",
-            tint = Color(0xFFE53734),
+            imageVector = Icons.Rounded.VolumeUp,
+            contentDescription = if (isPlaying) "Reproduciendo palabra" else "Escuchar palabra",
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(32.dp)
         )
+    }
+    if (audioError) {
+        Text("No pudimos reproducir el audio. Toca el altavoz para intentarlo otra vez.", modifier = Modifier.padding(horizontal = 24.dp), color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center)
     }
 }
 

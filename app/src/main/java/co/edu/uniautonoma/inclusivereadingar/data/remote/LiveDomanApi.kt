@@ -11,11 +11,14 @@ import org.json.JSONObject
 /** HTTP boundary for the teacher-led Doman room. No local timer advances a card. */
 interface LiveDomanApi {
     suspend fun getCards(accessToken: String?): List<LiveDomanCard>
+    suspend fun createCard(word: String, categoryId: String, accessToken: String?): LiveDomanCard
     suspend fun getRepertoires(accessToken: String?): List<LiveDomanRepertoire>
+    suspend fun createRepertoire(name: String, categoryId: String, cardIds: List<String>, accessToken: String?): LiveDomanRepertoire
     suspend fun createSession(groupId: String, repertoireId: String, accessToken: String?): LiveDomanSession
     suspend fun getCurrent(accessToken: String?): List<LiveDomanSession>
     suspend fun getSession(sessionId: String, accessToken: String?): LiveDomanSessionDetail
     suspend fun join(sessionId: String, accessToken: String?): LiveDomanSession
+    suspend fun heartbeat(sessionId: String, accessToken: String?)
     suspend fun command(
         sessionId: String,
         action: String,
@@ -30,8 +33,22 @@ class HttpLiveDomanApi(private val httpClient: BackendHttpClient) : LiveDomanApi
     override suspend fun getCards(accessToken: String?): List<LiveDomanCard> =
         parseCards(httpClient.get("/doman/cards", accessToken = accessToken))
 
+    override suspend fun createCard(word: String, categoryId: String, accessToken: String?): LiveDomanCard {
+        val root = JSONObject(httpClient.post("/doman/cards", JSONObject().put("word", word).put("category_id", categoryId), accessToken))
+        return parseCards(JSONArray().put(root).toString()).single()
+    }
+
     override suspend fun getRepertoires(accessToken: String?): List<LiveDomanRepertoire> =
         parseRepertoires(httpClient.get("/doman/repertoires", accessToken = accessToken))
+
+    override suspend fun createRepertoire(name: String, categoryId: String, cardIds: List<String>, accessToken: String?): LiveDomanRepertoire {
+        val root = JSONObject(httpClient.post(
+            "/doman/repertoires",
+            JSONObject().put("name", name).put("category_id", categoryId).put("stage", "single_words").put("card_ids", JSONArray(cardIds)),
+            accessToken
+        ))
+        return parseRepertoires(JSONArray().put(root).toString()).single()
+    }
 
     override suspend fun createSession(
         groupId: String,
@@ -63,24 +80,17 @@ class HttpLiveDomanApi(private val httpClient: BackendHttpClient) : LiveDomanApi
         val participants = root.optJSONArray("participants") ?: JSONArray()
         return LiveDomanSessionDetail(
             session = session,
-            participants = buildList {
-                for (index in 0 until participants.length()) {
-                    val item = participants.getJSONObject(index)
-                    add(
-                        LiveDomanParticipant(
-                            studentId = item.optString("student_id"),
-                            status = item.optString("connection_state", item.optString("status", "joined")),
-                            acknowledgedSequence = item.optInt("current_ack_sequence", item.optInt("acknowledged_sequence", -1))
-                        )
-                    )
-                }
-            }
+            participants = parseLiveParticipants(participants)
         )
     }
 
     override suspend fun join(sessionId: String, accessToken: String?): LiveDomanSession {
         val root = JSONObject(httpClient.post("/doman/live-sessions/$sessionId/join", JSONObject(), accessToken))
         return parseSession(root.optJSONObject("session") ?: root)
+    }
+
+    override suspend fun heartbeat(sessionId: String, accessToken: String?) {
+        httpClient.post("/doman/live-sessions/$sessionId/heartbeat", JSONObject(), accessToken)
     }
 
     override suspend fun command(
@@ -140,14 +150,31 @@ class HttpLiveDomanApi(private val httpClient: BackendHttpClient) : LiveDomanApi
                         name = item.optString("name").ifBlank { item.optString("title") },
                         description = item.optString("description").ifBlank { null },
                         cardCount = item.optInt("card_count", cards?.length() ?: 0),
-                        status = item.optString("status", "active")
+                        status = item.optString("status", "active"),
+                        categoryId = item.optString("category_id").ifBlank { null }
                     )
                 )
             }
         }
     }
 
-    private fun parseSession(item: JSONObject): LiveDomanSession {
+    internal fun parseSession(item: JSONObject): LiveDomanSession = parseLiveSession(item)
+}
+
+internal fun parseLiveParticipants(participants: JSONArray): List<LiveDomanParticipant> = buildList {
+    for (index in 0 until participants.length()) {
+        val item = participants.getJSONObject(index)
+        add(
+            LiveDomanParticipant(
+                studentId = item.optString("student_id"),
+                status = item.optString("connection_state", item.optString("status", "invited")),
+                acknowledgedSequence = item.optInt("current_ack_sequence", item.optInt("acknowledged_sequence", -1))
+            )
+        )
+    }
+}
+
+internal fun parseLiveSession(item: JSONObject): LiveDomanSession {
         val repertoire = item.optJSONObject("repertoire_snapshot")
         val activeCardIndex = item.optInt("active_card_index", -1)
         val card = repertoire?.optJSONArray("cards")
@@ -167,5 +194,4 @@ class HttpLiveDomanApi(private val httpClient: BackendHttpClient) : LiveDomanApi
             displayDurationMs = presentation?.optInt("display_ms", 0)
                 ?: item.optInt("display_duration_ms", item.optInt("display_ms", 0))
         )
-    }
 }

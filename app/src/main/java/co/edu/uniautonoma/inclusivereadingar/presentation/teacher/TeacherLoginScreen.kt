@@ -1,26 +1,29 @@
 package co.edu.uniautonoma.inclusivereadingar.presentation.teacher
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,25 +34,31 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.edu.uniautonoma.inclusivereadingar.appContainer
+import co.edu.uniautonoma.inclusivereadingar.presentation.auth.LaunchBrandLogo
+import co.edu.uniautonoma.inclusivereadingar.presentation.student.LoginErrorMessage
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.AuthViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.AuthViewModelFactory
+import co.edu.uniautonoma.inclusivereadingar.presentation.theme.PrimaryRedDark
 
 @Composable
 fun TeacherLoginRoute(
@@ -66,11 +75,13 @@ fun TeacherLoginRoute(
     TeacherLoginScreen(
         identifier = uiState.identifier,
         password = uiState.password,
+        identifierError = uiState.identifierError,
+        passwordError = uiState.passwordError,
         isLoading = uiState.isLoading,
         errorMessage = uiState.errorMessage,
         onIdentifierChange = viewModel::updateIdentifier,
         onPasswordChange = viewModel::updatePassword,
-        onLoginClick = { viewModel.login(onLoginSuccess) },
+        onLoginClick = { viewModel.loginWithPassword(onLoginSuccess) },
         onStudentLoginClick = onStudentLoginClick
     )
 }
@@ -79,6 +90,8 @@ fun TeacherLoginRoute(
 fun TeacherLoginScreen(
     identifier: String,
     password: String,
+    identifierError: String?,
+    passwordError: String?,
     isLoading: Boolean,
     errorMessage: String?,
     onIdentifierChange: (String) -> Unit,
@@ -86,174 +99,75 @@ fun TeacherLoginScreen(
     onLoginClick: () -> Unit,
     onStudentLoginClick: () -> Unit
 ) {
-    val primary = Color(0xFFE53734)
-    val background = Color(0xFFF8F6F6)
-    val textDark = Color(0xFF111827)
-    val textMuted = Color(0xFF64748B)
+    val colors = MaterialTheme.colorScheme
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(background)
+            .background(colors.background)
+            .verticalScroll(rememberScrollState())
+            .statusBarsPadding()
+            .imePadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
+        TextButton(
+            onClick = onStudentLoginClick,
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .align(Alignment.Start)
+                .heightIn(min = 48.dp)
+                .testTag("teacher_back_to_student"),
+            colors = ButtonDefaults.textButtonColors(contentColor = colors.secondary)
         ) {
-            IconButton(
-                onClick = onStudentLoginClick,
-                modifier = Modifier
-                    .align(Alignment.Start)
-                    .statusBarsPadding()
-                    .padding(top = 8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Volver",
-                    tint = primary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .size(116.dp)
-                    .clip(CircleShape)
-                    .background(primary.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.AutoStories,
-                    contentDescription = null,
-                    tint = primary,
-                    modifier = Modifier.size(74.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Lectura Inclusiva Aumentada",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = textDark
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "Ingreso docente",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = primary
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Administra temáticas y crea nuevas tarjetas de lectura",
-                fontSize = 17.sp,
-                color = textMuted,
-                lineHeight = 24.sp
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            TeacherLoginField(
-                value = identifier,
-                onValueChange = onIdentifierChange,
-                label = "Usuario o correo electrónico",
-                placeholder = "profe.ana o teacher@lectura.app",
-                leadingIcon = Icons.Rounded.Person,
-                isPassword = false
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            TeacherLoginField(
-                value = password,
-                onValueChange = onPasswordChange,
-                label = "Contraseña",
-                placeholder = "Ingresa tu contraseña",
-                leadingIcon = Icons.Rounded.Lock,
-                isPassword = true
-            )
-
-            if (!errorMessage.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.errorContainer
-                ) {
-                    Text(
-                        text = errorMessage,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(14.dp),
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = onLoginClick,
-                enabled = !isLoading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = primary,
-                    contentColor = Color.White
-                )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        color = Color.White,
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        text = "Entrar",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Credenciales demo docente",
-                        fontWeight = FontWeight.Bold,
-                        color = textDark
-                    )
-                    Text(
-                        text = "Correo: teacher@lectura.app\nContraseña: Lectura123!",
-                        color = textMuted,
-                        lineHeight = 22.sp
-                    )
-                }
-            }
-
-            Spacer(
-                modifier = Modifier
-                    .height(24.dp)
-                    .navigationBarsPadding()
-            )
+            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null, modifier = Modifier.size(20.dp))
+            Text("Volver al PIN", modifier = Modifier.padding(start = 8.dp))
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
+        LaunchBrandLogo(modifier = Modifier.testTag("teacher_login_logo"), size = 96.dp)
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "Acceso docente",
+            fontSize = 30.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = colors.onBackground
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Gestiona el aprendizaje de tus estudiantes.",
+            fontSize = 16.sp,
+            lineHeight = 23.sp,
+            color = colors.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
+        TeacherLoginField(
+            value = identifier,
+            onValueChange = onIdentifierChange,
+            label = "Usuario o correo",
+            leadingIcon = Icons.Rounded.Person,
+            keyboardType = KeyboardType.Email,
+            imeAction = ImeAction.Next,
+            errorMessage = identifierError,
+            modifier = Modifier.testTag("teacher_identifier_field")
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        TeacherPasswordField(
+            value = password,
+            onValueChange = onPasswordChange,
+            errorMessage = passwordError,
+            onDone = onLoginClick
+        )
+        if (!errorMessage.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            LoginErrorMessage(errorMessage)
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+        TeacherPrimaryButton(isLoading = isLoading, onClick = onLoginClick)
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -262,42 +176,100 @@ private fun TeacherLoginField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
-    placeholder: String,
-    leadingIcon: ImageVector,
-    isPassword: Boolean
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    keyboardType: KeyboardType,
+    imeAction: ImeAction,
+    errorMessage: String?,
+    modifier: Modifier = Modifier
 ) {
-    val primary = Color(0xFFE53734)
+    val colors = MaterialTheme.colorScheme
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().heightIn(min = 64.dp),
+        label = { Text(label) },
+        leadingIcon = { Icon(leadingIcon, contentDescription = null, tint = colors.secondary) },
+        isError = errorMessage != null,
         singleLine = true,
-        label = { Text(text = label) },
-        placeholder = { Text(text = placeholder) },
-        leadingIcon = {
-            Icon(
-                imageVector = leadingIcon,
-                contentDescription = null,
-                tint = primary.copy(alpha = 0.75f)
-            )
-        },
-        // KeyboardType.Password impide que el teclado guarde la contrasena
-        // en su diccionario predictivo; PasswordVisualTransformation solo
-        // la oculta en pantalla.
-        keyboardOptions = KeyboardOptions(
-            keyboardType = if (isPassword) KeyboardType.Password else KeyboardType.Text,
-        ),
-        visualTransformation = if (isPassword) {
-            PasswordVisualTransformation()
-        } else {
-            androidx.compose.ui.text.input.VisualTransformation.None
-        },
-        shape = RoundedCornerShape(18.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = primary,
-            unfocusedBorderColor = Color(0xFFE2E8F0),
-            focusedContainerColor = Color.White,
-            unfocusedContainerColor = Color.White
-        )
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        shape = RoundedCornerShape(16.dp),
+        colors = teacherFieldColors(),
+        supportingText = errorMessage?.let { { Text(it) } }
     )
+}
+
+@Composable
+private fun TeacherPasswordField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    errorMessage: String?,
+    onDone: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+    var visible by remember { mutableStateOf(false) }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("teacher_password_field"),
+        label = { Text("Contraseña") },
+        leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null, tint = colors.secondary) },
+        trailingIcon = {
+            IconButton(onClick = { visible = !visible }, modifier = Modifier.testTag("teacher_password_visibility")) {
+                Icon(
+                    imageVector = if (visible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                    contentDescription = if (visible) "Ocultar contraseña" else "Mostrar contraseña"
+                )
+            }
+        },
+        isError = errorMessage != null,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { onDone() }),
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        shape = RoundedCornerShape(16.dp),
+        colors = teacherFieldColors(),
+        supportingText = errorMessage?.let { { Text(it) } }
+    )
+}
+
+@Composable
+private fun teacherFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = MaterialTheme.colorScheme.secondary,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+    focusedLabelColor = MaterialTheme.colorScheme.secondary,
+    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    focusedContainerColor = MaterialTheme.colorScheme.surface,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+)
+
+@Composable
+private fun TeacherPrimaryButton(isLoading: Boolean, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .padding(bottom = 7.dp)
+            .testTag("teacher_login_submit")
+    ) {
+        Surface(
+            modifier = Modifier.matchParentSize().offset(y = 7.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = PrimaryRedDark
+        ) {}
+        Button(
+            onClick = onClick,
+            modifier = Modifier.matchParentSize(),
+            shape = RoundedCornerShape(20.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.primary, contentColor = colors.onPrimary)
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(color = colors.onPrimary, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                Text(" Entrando…", fontWeight = FontWeight.Bold)
+            } else {
+                Text("Entrar", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+            }
+        }
+    }
 }

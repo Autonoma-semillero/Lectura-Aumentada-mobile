@@ -252,22 +252,32 @@ class HttpTeacherApi(
         input: AudioUploadInput,
         accessToken: String?
     ): UploadedAudio {
-        val response = httpClient.postMultipartFile(
-            path = "/uploads/audio",
-            fieldName = "file",
-            filePath = input.filePath,
-            mimeType = input.mimeType,
-            originalName = input.originalName,
+        val file = java.io.File(input.filePath)
+        require(file.exists() && file.isFile) { "Selected audio file does not exist: ${input.filePath}" }
+        val mimeType = input.mimeType?.takeIf { it.isNotBlank() } ?: "audio/mp4"
+        val originalName = input.originalName?.takeIf { it.isNotBlank() } ?: file.name
+        val authorization = httpClient.post(
+            path = "/uploads/audio/presigned",
+            body = JSONObject()
+                .put("original_name", originalName)
+                .put("mime_type", mimeType)
+                .put("size_bytes", file.length()),
             accessToken = accessToken
         )
+        val upload = JSONObject(authorization)
+        val response = httpClient.putFileToPresignedUrl(
+            uploadUrl = upload.getString("upload_url"),
+            filePath = input.filePath,
+            mimeType = upload.getString("mime_type")
+        )
         val json = JSONObject(response)
+        val audioUrl = json.optString("url").ifBlank { json.optString("audio_url") }
+        require(audioUrl.isNotBlank()) { "The audio storage response did not include a public URL" }
         return UploadedAudio(
-            audioUrl = json.getString("audio_url"),
-            mimeType = json.optString("mime_type").ifBlank { "application/octet-stream" },
-            sizeBytes = json.optLong("size_bytes", 0L),
-            originalName = json.optString("original_name").ifBlank {
-                input.originalName.orEmpty().ifBlank { "audio" }
-            }
+            audioUrl = audioUrl,
+            mimeType = json.optString("contentType").ifBlank { upload.getString("mime_type") },
+            sizeBytes = file.length(),
+            originalName = upload.getString("original_name")
         )
     }
 

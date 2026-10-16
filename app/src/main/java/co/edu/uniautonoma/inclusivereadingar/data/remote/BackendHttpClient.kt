@@ -129,6 +129,37 @@ class BackendHttpClient(
         }
     }
 
+    /** Uploads bytes to a one-use Vercel Blob URL. It deliberately never sends the app JWT to Blob. */
+    suspend fun putFileToPresignedUrl(
+        uploadUrl: String,
+        filePath: String,
+        mimeType: String
+    ): String = withContext(Dispatchers.IO) {
+        val file = File(filePath)
+        require(file.exists() && file.isFile) { "Selected audio file does not exist: $filePath" }
+        val connection = (URL(uploadUrl).openConnection() as HttpURLConnection).apply {
+            requestMethod = "PUT"
+            connectTimeout = TIMEOUT_MS
+            readTimeout = TIMEOUT_MS
+            doInput = true
+            doOutput = true
+            setRequestProperty("Accept", "application/json")
+            setRequestProperty("Content-Type", mimeType)
+            setFixedLengthStreamingMode(file.length())
+        }
+        try {
+            file.inputStream().use { input -> connection.outputStream.use { input.copyTo(it) } }
+            val statusCode = connection.responseCode
+            val responseBody = readResponse(connection, statusCode)
+            if (statusCode in 200..299) responseBody else throw BackendException(
+                statusCode = statusCode,
+                message = extractBackendMessage(responseBody, connection.responseMessage)
+            )
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private suspend fun request(
         method: String,
         path: String,

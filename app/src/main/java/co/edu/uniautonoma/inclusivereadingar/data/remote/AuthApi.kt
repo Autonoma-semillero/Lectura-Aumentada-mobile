@@ -7,6 +7,7 @@ import org.json.JSONObject
 
 interface AuthApi {
     suspend fun login(identifier: String, password: String): AuthSession
+    suspend fun loginWithStudentPin(pin: String): AuthSession
 }
 
 class HttpAuthApi(
@@ -28,6 +29,14 @@ class HttpAuthApi(
                 message = "Respuesta invalida del servidor al iniciar sesion."
             )
         }
+    }
+
+    override suspend fun loginWithStudentPin(pin: String): AuthSession {
+        val response = httpClient.post(
+            path = "/auth/student-pin-login",
+            body = JSONObject().put("pin", pin)
+        )
+        return parseAuthSession(response)
     }
 
     companion object {

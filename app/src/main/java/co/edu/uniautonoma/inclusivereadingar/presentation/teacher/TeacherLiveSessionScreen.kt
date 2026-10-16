@@ -3,13 +3,14 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.teacher
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,10 +27,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,7 +57,11 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel.Teac
 fun TeacherLiveSessionRoute(onBack: () -> Unit) {
     val container = LocalContext.current.appContainer()
     val viewModel: TeacherLiveSessionViewModel = viewModel(
-        factory = TeacherLiveSessionViewModelFactory(container.groupsRepository, container.liveDomanRepository)
+        factory = TeacherLiveSessionViewModelFactory(
+            container.groupsRepository,
+            container.liveDomanRepository,
+            container.teacherContentRepository
+        )
     )
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     TeacherLiveSessionScreen(
@@ -61,6 +70,11 @@ fun TeacherLiveSessionRoute(onBack: () -> Unit) {
         onRetry = viewModel::loadSetup,
         onSelectGroup = viewModel::selectGroup,
         onSelectRepertoire = viewModel::selectRepertoire,
+        onSelectContentCategory = viewModel::selectContentCategory,
+        onCreateCard = viewModel::createCard,
+        onToggleCard = viewModel::toggleCard,
+        onMoveCard = viewModel::moveCard,
+        onCreateRepertoire = viewModel::createRepertoire,
         onOpenRoom = viewModel::openRoom,
         onRefreshRoom = viewModel::refreshRoom,
         onCommand = viewModel::command
@@ -74,6 +88,11 @@ fun TeacherLiveSessionScreen(
     onRetry: () -> Unit,
     onSelectGroup: (String) -> Unit,
     onSelectRepertoire: (String) -> Unit,
+    onSelectContentCategory: (String) -> Unit,
+    onCreateCard: (String) -> Unit,
+    onToggleCard: (String) -> Unit,
+    onMoveCard: (String, Int) -> Unit,
+    onCreateRepertoire: (String) -> Unit,
     onOpenRoom: () -> Unit,
     onRefreshRoom: () -> Unit,
     onCommand: (String) -> Unit
@@ -87,6 +106,11 @@ fun TeacherLiveSessionScreen(
                 onRetry = onRetry,
                 onSelectGroup = onSelectGroup,
                 onSelectRepertoire = onSelectRepertoire,
+                onSelectContentCategory = onSelectContentCategory,
+                onCreateCard = onCreateCard,
+                onToggleCard = onToggleCard,
+                onMoveCard = onMoveCard,
+                onCreateRepertoire = onCreateRepertoire,
                 onOpenRoom = onOpenRoom
             )
             else -> TeacherRoomControl(
@@ -106,10 +130,16 @@ private fun RoomSetup(
     onRetry: () -> Unit,
     onSelectGroup: (String) -> Unit,
     onSelectRepertoire: (String) -> Unit,
+    onSelectContentCategory: (String) -> Unit,
+    onCreateCard: (String) -> Unit,
+    onToggleCard: (String) -> Unit,
+    onMoveCard: (String, Int) -> Unit,
+    onCreateRepertoire: (String) -> Unit,
     onOpenRoom: () -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        modifier = Modifier.fillMaxSize().navigationBarsPadding().padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(bottom = 72.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item { TeacherHeader("Nueva sala Doman", onBack) }
@@ -126,11 +156,21 @@ private fun RoomSetup(
         }
         item { Text("2. Elige el repertorio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
         if (state.repertoires.isEmpty()) {
-            item { EmptySetup("No hay repertorios disponibles. Crea tarjetas y un repertorio desde el contenido docente.") }
+            item { EmptySetup("Aún no hay repertorios. Puedes preparar uno aquí mismo antes de abrir la sala.") }
         } else {
             items(state.repertoires, key = { it.id }) { repertoire ->
                 SelectableRepertoire(repertoire, repertoire.id == state.selectedRepertoireId, onSelectRepertoire)
             }
+        }
+        item {
+            LiveContentBuilder(
+                state = state,
+                onSelectCategory = onSelectContentCategory,
+                onCreateCard = onCreateCard,
+                onToggleCard = onToggleCard,
+                onMoveCard = onMoveCard,
+                onCreateRepertoire = onCreateRepertoire
+            )
         }
         item {
             Button(
@@ -146,6 +186,113 @@ private fun RoomSetup(
 }
 
 @Composable
+private fun LiveContentBuilder(
+    state: TeacherLiveSessionUiState,
+    onSelectCategory: (String) -> Unit,
+    onCreateCard: (String) -> Unit,
+    onToggleCard: (String) -> Unit,
+    onMoveCard: (String, Int) -> Unit,
+    onCreateRepertoire: (String) -> Unit
+) {
+    var cardText by remember { mutableStateOf("") }
+    var repertoireName by remember { mutableStateOf("") }
+    val categoryId = state.selectedContentCategoryId
+    val cards = state.cards.filter { it.categoryId == categoryId && it.status == "active" }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = MaterialTheme.shapes.extraLarge
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("3. Prepara el repertorio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                "El orden elegido será el orden de presentación para el grupo.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (state.categories.isEmpty()) {
+                Text("Crea una categoría desde Contenido docente antes de añadir tarjetas.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                return@Column
+            }
+            state.categories.forEach { category ->
+                OutlinedButton(
+                    onClick = { onSelectCategory(category.id) },
+                    modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp)
+                ) {
+                    Text(if (category.id == categoryId) "Categoría: ${category.name}" else category.name)
+                }
+            }
+            OutlinedTextField(
+                value = cardText,
+                onValueChange = { cardText = it },
+                label = { Text("Nueva tarjeta") },
+                supportingText = { Text("Ejemplo: MANZANA") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isSubmitting
+            )
+            Button(
+                onClick = { onCreateCard(cardText); cardText = "" },
+                enabled = !state.isSubmitting && categoryId != null && cardText.isNotBlank(),
+                modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp)
+            ) { Text("Guardar tarjeta") }
+            if (cards.isEmpty()) {
+                Text("No hay tarjetas activas en esta categoría.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Text("Selecciona y ordena las tarjetas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                cards.forEach { card ->
+                    val order = state.selectedCardIds.indexOf(card.id)
+                    Card(
+                        onClick = { onToggleCard(card.id) },
+                        modifier = Modifier.fillMaxWidth().semantics { selected = order >= 0; role = Role.Checkbox },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (order >= 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(if (order >= 0) "${order + 1}" else "—", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(card.text, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                            if (order >= 0) {
+                                OutlinedButton(
+                                    onClick = { onMoveCard(card.id, -1) },
+                                    enabled = order > 0 && !state.isSubmitting,
+                                    modifier = Modifier.sizeIn(minHeight = 48.dp)
+                                ) { Text("Subir") }
+                                OutlinedButton(
+                                    onClick = { onMoveCard(card.id, 1) },
+                                    enabled = order < state.selectedCardIds.lastIndex && !state.isSubmitting,
+                                    modifier = Modifier.sizeIn(minHeight = 48.dp)
+                                ) { Text("Bajar") }
+                            }
+                        }
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = repertoireName,
+                onValueChange = { repertoireName = it },
+                label = { Text("Nombre del repertorio") },
+                supportingText = { Text("Incluye al menos una tarjeta.") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isSubmitting
+            )
+            Button(
+                onClick = { onCreateRepertoire(repertoireName); repertoireName = "" },
+                enabled = !state.isSubmitting && categoryId != null && repertoireName.isNotBlank() && state.selectedCardIds.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp)
+            ) { Text("Crear repertorio con ${state.selectedCardIds.size} tarjetas") }
+        }
+    }
+}
+
+@Composable
 private fun TeacherRoomControl(
     state: TeacherLiveSessionUiState,
     onBack: () -> Unit,
@@ -154,6 +301,8 @@ private fun TeacherRoomControl(
 ) {
     val session = requireNotNull(state.session)
     val participants = state.detail?.participants.orEmpty()
+    val joined = participants.count { it.status == "ready" || it.status == "connected" }
+    val confirmed = participants.count { it.acknowledgedSequence >= session.sequence && session.sequence > 0 }
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -164,13 +313,14 @@ private fun TeacherRoomControl(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text("Sala Doman", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("${participants.size} estudiantes conectados", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("$joined se unieron · $confirmed confirmaron la tarjeta", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onRefresh, enabled = !state.isSubmitting, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)) {
                 Icon(Icons.Rounded.Refresh, contentDescription = "Actualizar estado de la sala")
             }
         }
         state.errorMessage?.let { ErrorCard(it, onRefresh) }
+        Text(if (state.isRealtimeConnected) "Actualización en vivo activa" else "Reconectando actualización en vivo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Surface(
             modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh,

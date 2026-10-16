@@ -128,7 +128,7 @@ fun AppNavHost() {
         }
 
         composable(route = AppDestinations.STUDENT_LIVE_ROOM_ROUTE) {
-            LiveStudentRoomRoute(onLogoutClick = { showLogoutDialog = true })
+            LiveStudentRoomRoute(onBackClick = navController::navigateToStudentToday)
         }
 
         composable(route = AppDestinations.PRACTICE_ROUTE) {

@@ -76,6 +76,28 @@ class StudentTodayViewModelTest {
     }
 
     @Test
+    fun load_completedCategory_keepsNextPendingCategoryAsPrimaryActivity() = runTest {
+        val dataSource = FakeStudentTodayDataSource(
+            plan = plan(),
+            activities = TodayActivitiesResult(
+                activities = listOf(
+                    dailyPlan(pendingSessionsCount = 0, categoryId = "cat-1", categoryName = "Animales"),
+                    dailyPlan(pendingSessionsCount = 3, categoryId = "cat-2", categoryName = "Cocina")
+                ),
+                countsLoadFailed = false
+            )
+        )
+        val viewModel = StudentTodayViewModel(dataSource)
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value as StudentTodayUiState.DueToday
+        assertThat(state.activities).hasSize(2)
+        assertThat(state.activities.first().categoryName).isEqualTo("Cocina")
+        assertThat(state.activities.last().categoryName).isEqualTo("Animales")
+    }
+
+    @Test
     fun load_countsFetchFails_emitsErrorNotUpToDate() = runTest {
         val dataSource = FakeStudentTodayDataSource(
             plan = plan(),
@@ -93,7 +115,7 @@ class StudentTodayViewModelTest {
     }
 
     @Test
-    fun load_planFetchThrows_emitsErrorWithBackendMessage() = runTest {
+    fun load_planFetchThrows_emitsChildFriendlyError() = runTest {
         val dataSource = FakeStudentTodayDataSource(
             planFailure = BackendException(503, "El servicio no está disponible.")
         )
@@ -103,7 +125,8 @@ class StudentTodayViewModelTest {
 
         val state = viewModel.uiState.value
         assertThat(state).isInstanceOf(StudentTodayUiState.Error::class.java)
-        assertThat((state as StudentTodayUiState.Error).message).isEqualTo("El servicio no está disponible.")
+        assertThat((state as StudentTodayUiState.Error).message)
+            .isEqualTo("No pudimos abrir tu lectura. Probemos otra vez.")
     }
 
     @Test
@@ -135,13 +158,17 @@ class StudentTodayViewModelTest {
         )
     )
 
-    private fun dailyPlan(pendingSessionsCount: Int): DailyPlanSummary = DailyPlanSummary(
+    private fun dailyPlan(
+        pendingSessionsCount: Int,
+        categoryId: String = "cat-1",
+        categoryName: String = "Cocina"
+    ): DailyPlanSummary = DailyPlanSummary(
         planId = "plan-1",
         studentId = "student-1",
-        categoryId = "cat-1",
+        categoryId = categoryId,
         studyPlanId = "plan-1",
         studyPlanLevelId = "level-1",
-        categoryName = "Cocina",
+        categoryName = categoryName,
         targetCardsCount = 5,
         targetSessionsCount = 1,
         cardsCount = 5,

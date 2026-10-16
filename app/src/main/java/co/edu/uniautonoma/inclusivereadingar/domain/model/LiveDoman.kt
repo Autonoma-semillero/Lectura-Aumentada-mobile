@@ -13,7 +13,8 @@ data class LiveDomanRepertoire(
     val name: String,
     val description: String?,
     val cardCount: Int,
-    val status: String
+    val status: String,
+    val categoryId: String? = null
 )
 
 /** The server is the source of truth for the card shown to every participant. */

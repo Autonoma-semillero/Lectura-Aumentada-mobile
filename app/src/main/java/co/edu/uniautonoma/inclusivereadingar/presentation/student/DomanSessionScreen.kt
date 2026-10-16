@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -111,8 +111,9 @@ fun DomanSessionScreen(
     onRetry: () -> Unit
 ) {
     val session = uiState.session
+    val protectedDisplayMs = session?.displayMs?.coerceAtLeast(1_000) ?: 0
     var remainingMillis by remember(uiState.currentIndex, session?.sessionId) {
-        mutableIntStateOf(session?.displayMs ?: 0)
+        mutableIntStateOf(protectedDisplayMs)
     }
     var progress by remember(uiState.currentIndex, session?.sessionId) {
         mutableFloatStateOf(1f)
@@ -122,12 +123,12 @@ fun DomanSessionScreen(
         if (session == null || !uiState.canRunTimer) {
             return@LaunchedEffect
         }
-        remainingMillis = session.displayMs
+        remainingMillis = protectedDisplayMs
         progress = 1f
         while (remainingMillis > 0) {
             delay(100)
             remainingMillis = (remainingMillis - 100).coerceAtLeast(0)
-            progress = remainingMillis.toFloat() / session.displayMs.toFloat()
+            progress = remainingMillis.toFloat() / protectedDisplayMs.toFloat()
         }
         if (uiState.canRunTimer && remainingMillis == 0) {
             onAdvance()
@@ -137,7 +138,7 @@ fun DomanSessionScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFF8F7))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Row(
             modifier = Modifier
@@ -151,25 +152,25 @@ fun DomanSessionScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = "Volver",
-                    tint = Color(0xFFE53734)
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(text = "Sesión del día", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
-                Text(text = categoryName, color = Color(0xFF64748B))
+                Text(text = categoryName, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onTogglePause) {
                 Icon(
                     imageVector = if (uiState.isPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
                     contentDescription = if (uiState.isPaused) "Reanudar" else "Pausar",
-                    tint = Color(0xFFE53734)
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
 
         when {
             uiState.isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color(0xFFE53734))
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
 
             !uiState.errorMessage.isNullOrBlank() -> Column(
@@ -189,8 +190,8 @@ fun DomanSessionScreen(
                     onClick = onRetry,
                     modifier = Modifier.padding(top = 16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE53734),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text(
@@ -201,7 +202,7 @@ fun DomanSessionScreen(
             }
 
             session == null || uiState.currentCard == null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "No hay una sesión disponible.", color = Color(0xFF64748B))
+                Text(text = "No hay una sesión disponible.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             else -> {
@@ -218,18 +219,18 @@ fun DomanSessionScreen(
                     ) {
                         Text(
                             text = "Tarjeta ${uiState.currentIndex + 1} de ${session.cards.size}",
-                            color = Color(0xFF64748B),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                         LinearProgressIndicator(
                             progress = { progress.coerceIn(0f, 1f) },
                             modifier = Modifier.fillMaxWidth(),
-                            color = Color(0xFFE53734),
-                            trackColor = Color(0xFFF4C7C7)
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.primaryContainer
                         )
                         Text(
-                            text = if (uiState.isPaused) "Pausado" else "${(remainingMillis / 1000f).coerceAtLeast(0f)} s",
-                            color = Color(0xFFE53734),
+                            text = if (uiState.isPaused) "Pausado" else "${kotlin.math.ceil(remainingMillis / 1000.0).toInt().coerceAtLeast(0)} s",
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -250,8 +251,8 @@ fun DomanSessionScreen(
                             modifier = Modifier.fillMaxWidth().height(56.dp),
                             shape = RoundedCornerShape(20.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFE53734),
-                                contentColor = Color.White
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
                             Text(
@@ -260,14 +261,10 @@ fun DomanSessionScreen(
                                 fontSize = 18.sp
                             )
                         }
-                        Button(
+                        OutlinedButton(
                             onClick = onSkip,
                             modifier = Modifier.fillMaxWidth().height(52.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color(0xFFE53734)
-                            )
+                            shape = RoundedCornerShape(20.dp)
                         ) {
                             Text(text = "Omitir tarjeta", fontWeight = FontWeight.SemiBold)
                         }
@@ -288,13 +285,13 @@ private fun WordDisplayCard(
     Surface(
         modifier = modifier.padding(vertical = 24.dp),
         shape = RoundedCornerShape(36.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 8.dp
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
                 text = card.word.uppercase(),
-                color = Color(0xFFE53734),
+                color = MaterialTheme.colorScheme.primary,
                 fontSize = 68.sp,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center,
@@ -323,6 +320,7 @@ private fun AudioPlayButton(
     val resolvedUrl = resolvePlaybackUrl(audioUrl, backendBaseUrl)
     val player = remember(resolvedUrl) { MediaPlayer() }
     var isPlaying by remember(resolvedUrl) { mutableStateOf(false) }
+    var audioError by remember(resolvedUrl) { mutableStateOf(false) }
 
     DisposableEffect(resolvedUrl) {
         onDispose { player.release() }
@@ -331,45 +329,50 @@ private fun AudioPlayButton(
     // Auto-play al aparecer cada tarjeta
     LaunchedEffect(resolvedUrl) {
         runCatching {
+            audioError = false
             onPlayAudio()
             player.reset()
             player.setDataSource(resolvedUrl)
-            player.setOnErrorListener { _, _, _ -> isPlaying = false; true }
+            player.setOnErrorListener { _, _, _ -> isPlaying = false; audioError = true; true }
             player.setOnCompletionListener { isPlaying = false }
             player.setOnPreparedListener { it.start() }
             isPlaying = true
             player.prepareAsync()
-        }.onFailure { isPlaying = false }
+        }.onFailure { isPlaying = false; audioError = true }
     }
 
     IconButton(
         onClick = {
             if (!isPlaying) {
                 runCatching {
+                    audioError = false
                     onPlayAudio()
                     player.reset()
                     player.setDataSource(resolvedUrl)
-                    player.setOnErrorListener { _, _, _ -> isPlaying = false; true }
+                    player.setOnErrorListener { _, _, _ -> isPlaying = false; audioError = true; true }
                     player.setOnCompletionListener { isPlaying = false }
                     player.setOnPreparedListener { it.start() }
                     isPlaying = true
                     player.prepareAsync()
-                }.onFailure { isPlaying = false }
+                }.onFailure { isPlaying = false; audioError = true }
             }
         },
         enabled = !isPlaying,
         modifier = modifier
             .size(56.dp)
             .background(
-                Color(0xFFE53734).copy(alpha = if (isPlaying) 0.05f else 0.12f),
+                MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.05f else 0.12f),
                 CircleShape
             )
     ) {
         Icon(
             imageVector = Icons.Rounded.VolumeUp,
             contentDescription = "Escuchar palabra",
-            tint = Color(0xFFE53734).copy(alpha = if (isPlaying) 0.35f else 1f)
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.35f else 1f)
         )
+    }
+    if (audioError) {
+        Text("No pudimos reproducir el audio. Toca el altavoz para reintentar.", color = MaterialTheme.colorScheme.error, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 24.dp))
     }
 }
 

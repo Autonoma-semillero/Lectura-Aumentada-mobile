@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 interface AuthSessionRepository {
     val sessionFlow: Flow<AuthSession?>
     suspend fun login(identifier: String, password: String): AuthSession
+    suspend fun loginWithStudentPin(pin: String): AuthSession
     suspend fun logout()
     suspend fun currentSession(): AuthSession?
 }
@@ -20,6 +21,12 @@ class AuthRepository(
 
     override suspend fun login(identifier: String, password: String): AuthSession {
         val session = authApi.login(identifier, password)
+        sessionStore.saveSession(session)
+        return session
+    }
+
+    override suspend fun loginWithStudentPin(pin: String): AuthSession {
+        val session = authApi.loginWithStudentPin(pin)
         sessionStore.saveSession(session)
         return session
     }

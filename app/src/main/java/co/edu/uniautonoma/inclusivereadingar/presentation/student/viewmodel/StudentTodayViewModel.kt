@@ -3,7 +3,6 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import co.edu.uniautonoma.inclusivereadingar.data.remote.BackendException
 import co.edu.uniautonoma.inclusivereadingar.data.repository.StudentTodayDataSource
 import co.edu.uniautonoma.inclusivereadingar.domain.model.DailyPlanSummary
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,24 +61,31 @@ class StudentTodayViewModel(
                     return@onSuccess
                 }
                 val (plan, activitiesResult) = loadedToday
+                val pendingActivities = activitiesResult.activities.filter {
+                    it.pendingSessionsCount > 0
+                }
+                val completedActivities = activitiesResult.activities.filter {
+                    it.pendingSessionsCount == 0
+                }
                 _uiState.value = when {
                     activitiesResult.countsLoadFailed -> StudentTodayUiState.Error(
                         "No fue posible cargar tu actividad de hoy. Intenta de nuevo."
                     )
 
-                    activitiesResult.activities.isEmpty() ||
-                        activitiesResult.activities.all { it.pendingSessionsCount == 0 } ->
+                    pendingActivities.isEmpty() ->
                         StudentTodayUiState.UpToDate(planName = plan.planName, levelName = plan.levelName)
 
                     else -> StudentTodayUiState.DueToday(
                         planName = plan.planName,
                         levelName = plan.levelName,
-                        activities = activitiesResult.activities
+                        // The next pending category is first. Completed categories stay in the
+                        // response so the child can see what they already finished today.
+                        activities = pendingActivities + completedActivities
                     )
                 }
-            }.onFailure { error ->
+            }.onFailure {
                 _uiState.value = StudentTodayUiState.Error(
-                    error.toUiMessage("No fue posible cargar tu actividad de hoy.")
+                    "No pudimos abrir tu lectura. Probemos otra vez."
                 )
             }
         }
@@ -98,7 +104,3 @@ class StudentTodayViewModelFactory(
     }
 }
 
-private fun Throwable.toUiMessage(fallback: String): String = when (this) {
-    is BackendException -> message
-    else -> message?.takeIf { it.isNotBlank() } ?: fallback
-}

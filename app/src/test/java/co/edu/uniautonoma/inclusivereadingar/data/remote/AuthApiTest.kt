@@ -21,31 +21,47 @@ class AuthApiTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     @Test
-    fun login_updatesStateAndInvokesSuccessCallback() = runTest {
+    fun studentPinLogin_updatesStateAndInvokesSuccessCallback() = runTest {
         val repository = FakeAuthRepository()
         val viewModel = AuthViewModel(repository)
         var loginSuccess = false
 
-        viewModel.updateIdentifier("student")
-        viewModel.updatePassword("Lectura123!")
-        viewModel.login { loginSuccess = true }
+        viewModel.updatePin("1234")
+        viewModel.loginWithStudentPin { loginSuccess = true }
         advanceUntilIdle()
 
         assertThat(loginSuccess).isTrue()
         assertThat(viewModel.uiState.value.isLoading).isFalse()
         assertThat(viewModel.uiState.value.errorMessage).isNull()
-        assertThat(repository.savedIdentifier).isEqualTo("student")
+        assertThat(repository.savedPin).isEqualTo("1234")
     }
 }
 
 private class FakeAuthRepository : AuthSessionRepository {
     private val _sessionFlow = MutableStateFlow<AuthSession?>(null)
     var savedIdentifier: String? = null
+    var savedPin: String? = null
 
     override val sessionFlow: Flow<AuthSession?> = _sessionFlow
 
     override suspend fun login(identifier: String, password: String): AuthSession {
         savedIdentifier = identifier
+        val session = AuthSession(
+            accessToken = "token-123",
+            user = SessionUser(
+                id = "user-1",
+                email = "student@lectura.app",
+                displayName = "Demo Student",
+                roles = listOf("student"),
+                status = "active"
+            )
+        )
+        _sessionFlow.value = session
+        return session
+    }
+
+    override suspend fun loginWithStudentPin(pin: String): AuthSession {
+        savedPin = pin
         val session = AuthSession(
             accessToken = "token-123",
             user = SessionUser(
