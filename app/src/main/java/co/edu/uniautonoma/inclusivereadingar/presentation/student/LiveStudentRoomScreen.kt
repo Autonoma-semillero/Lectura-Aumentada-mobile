@@ -84,7 +84,7 @@ private fun StudentClassRoom(uiState: LiveStudentRoomUiState, onToggleLocalPause
     }
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("En clase", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text(if (uiState.isRealtimeConnected) "Clase en vivo" else "Reconectando la clase", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.labelLarge, color = if (uiState.isRealtimeConnected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(if (uiState.isRealtimeConnected) "Clase en vivo" else "Sincronización automática", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.labelLarge, color = if (uiState.isRealtimeConnected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
         Text(instruction, modifier = Modifier.padding(top = 12.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             if (showingCard) {

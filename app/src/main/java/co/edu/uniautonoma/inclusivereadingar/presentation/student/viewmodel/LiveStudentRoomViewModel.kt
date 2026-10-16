@@ -35,8 +35,12 @@ class LiveStudentRoomViewModel(
     private var roomWasConnected = false
     private var feedWasConnected = false
     private var heartbeatJob: Job? = null
+    private var fallbackSyncJob: Job? = null
 
-    init { refresh() }
+    init {
+        refresh()
+        startFallbackSync()
+    }
 
     fun refresh(): Job = viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
@@ -127,6 +131,41 @@ class LiveStudentRoomViewModel(
         }
     }
 
+    /**
+     * Ably remains the low-latency path. When it cannot connect, this loop keeps
+     * the student's screen faithful to the server instead of freezing on the
+     * first card. It also discovers rooms opened while the student is waiting.
+     */
+    private fun startFallbackSync() {
+        fallbackSyncJob?.cancel()
+        fallbackSyncJob = viewModelScope.launch {
+            while (true) {
+                if (!_uiState.value.isRealtimeConnected) {
+                    val current = _uiState.value.session
+                    if (current != null) {
+                        runCatching { liveDoman.getSession(current.id).session }
+                            .onSuccess(::applyRealtimeSession)
+                    } else {
+                        runCatching {
+                            val sessions = liveDoman.getCurrent()
+                            sessions.firstOrNull { it.status == "running" || it.status == "paused" }
+                                ?: sessions.firstOrNull()
+                        }.getOrNull()?.let { discovered ->
+                            runCatching { liveDoman.join(discovered.id) }
+                                .onSuccess { joined ->
+                                    _uiState.update { it.copy(isLoading = false, session = joined, errorMessage = null) }
+                                    subscribe(joined.id)
+                                    startHeartbeat(joined.id)
+                                    acknowledgeIfShowing(joined)
+                                }
+                        }
+                    }
+                }
+                delay(2_000)
+            }
+        }
+    }
+
     private fun acknowledgeIfShowing(session: LiveDomanSession?) {
         val current = session ?: return
         if (current.status != "running" || current.displayText.isNullOrBlank()) return
@@ -142,8 +181,10 @@ class LiveStudentRoomViewModel(
         roomSubscription?.close()
         feedSubscription?.close()
         heartbeatJob?.cancel()
+        fallbackSyncJob?.cancel()
         roomSubscription = null
         feedSubscription = null
+        fallbackSyncJob = null
         super.onCleared()
     }
 }
