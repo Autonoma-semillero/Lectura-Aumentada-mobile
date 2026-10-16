@@ -9,7 +9,6 @@ import co.edu.uniautonoma.inclusivereadingar.data.repository.TeacherContentDataS
 import co.edu.uniautonoma.inclusivereadingar.data.remote.LiveDomanRealtimeSubscription
 import co.edu.uniautonoma.inclusivereadingar.domain.model.Category
 import co.edu.uniautonoma.inclusivereadingar.domain.model.LiveDomanCard
-import co.edu.uniautonoma.inclusivereadingar.domain.model.LiveDomanRepertoire
 import co.edu.uniautonoma.inclusivereadingar.domain.model.LiveDomanSession
 import co.edu.uniautonoma.inclusivereadingar.domain.model.LiveDomanSessionDetail
 import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentGroup
@@ -24,13 +23,11 @@ data class TeacherLiveSessionUiState(
     val isLoading: Boolean = true,
     val isSubmitting: Boolean = false,
     val groups: List<StudentGroup> = emptyList(),
-    val repertoires: List<LiveDomanRepertoire> = emptyList(),
     val categories: List<Category> = emptyList(),
     val cards: List<LiveDomanCard> = emptyList(),
     val selectedContentCategoryId: String? = null,
     val selectedCardIds: List<String> = emptyList(),
     val selectedGroupId: String? = null,
-    val selectedRepertoireId: String? = null,
     val detail: LiveDomanSessionDetail? = null,
     val errorMessage: String? = null,
     val isRealtimeConnected: Boolean = false
@@ -54,7 +51,6 @@ class TeacherLiveSessionViewModel(
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         try {
             val loadedGroups = groups.getGroups()
-            val loadedRepertoires = liveDoman.getRepertoires()
             val loadedCards = liveDoman.getCards()
             val loadedCategories = content.getCategories()
             _uiState.update { state ->
@@ -64,11 +60,9 @@ class TeacherLiveSessionViewModel(
                 state.copy(
                     isLoading = false,
                     groups = loadedGroups,
-                    repertoires = loadedRepertoires,
                     categories = loadedCategories,
                     cards = loadedCards,
                     selectedGroupId = state.selectedGroupId ?: loadedGroups.firstOrNull()?.id,
-                    selectedRepertoireId = state.selectedRepertoireId ?: loadedRepertoires.firstOrNull()?.id,
                     selectedContentCategoryId = selectedCategoryId,
                     selectedCardIds = state.selectedCardIds.filter { selected -> loadedCards.any { it.id == selected } }
                 )
@@ -79,14 +73,17 @@ class TeacherLiveSessionViewModel(
     }
 
     fun selectGroup(id: String) = _uiState.update { it.copy(selectedGroupId = id) }
-    fun selectRepertoire(id: String) = _uiState.update { it.copy(selectedRepertoireId = id) }
     fun selectContentCategory(id: String) = _uiState.update {
         it.copy(selectedContentCategoryId = id, selectedCardIds = emptyList())
     }
 
     fun toggleCard(id: String) = _uiState.update { state ->
         val selected = state.selectedCardIds
-        state.copy(selectedCardIds = if (id in selected) selected - id else selected + id)
+        when {
+            id in selected -> state.copy(selectedCardIds = selected - id)
+            selected.size < 10 -> state.copy(selectedCardIds = selected + id)
+            else -> state.copy(errorMessage = "Puedes elegir máximo 10 tarjetas por sala.")
+        }
     }
 
     fun moveCard(id: String, delta: Int) = _uiState.update { state ->
@@ -107,19 +104,21 @@ class TeacherLiveSessionViewModel(
         createContent { liveDoman.createCard(normalizedWord, categoryId) }
     }
 
-    fun createRepertoire(name: String) {
-        val state = _uiState.value
-        val categoryId = state.selectedContentCategoryId ?: return
-        val normalizedName = name.trim()
-        if (normalizedName.isBlank() || state.selectedCardIds.isEmpty()) return
-        createContent { liveDoman.createRepertoire(normalizedName, categoryId, state.selectedCardIds) }
-    }
-
     fun openRoom() {
-        val groupId = _uiState.value.selectedGroupId ?: return
-        val repertoireId = _uiState.value.selectedRepertoireId ?: return
+        val state = _uiState.value
+        val groupId = state.selectedGroupId ?: return
+        val categoryId = state.selectedContentCategoryId ?: return
+        if (state.selectedCardIds.isEmpty()) return
+        val categoryName = state.categories.firstOrNull { it.id == categoryId }?.name ?: "Tarjetas"
         submit {
-            val session = liveDoman.createSession(groupId, repertoireId)
+            // The backend keeps an immutable sequence snapshot through a repertoire,
+            // but teachers should only need to choose and order cards in the UI.
+            val sequence = liveDoman.createRepertoire(
+                name = "Sala $categoryName - ${System.currentTimeMillis()}",
+                categoryId = categoryId,
+                cardIds = state.selectedCardIds
+            )
+            val session = liveDoman.createSession(groupId, sequence.id)
             liveDoman.getSession(session.id)
         }
     }
@@ -141,7 +140,7 @@ class TeacherLiveSessionViewModel(
         _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
         try {
             operation()
-            _uiState.update { it.copy(isSubmitting = false, selectedCardIds = emptyList()) }
+            _uiState.update { it.copy(isSubmitting = false) }
             loadSetup()
         } catch (error: Throwable) {
             _uiState.update { it.copy(isSubmitting = false, errorMessage = error.message ?: "No se pudo guardar el contenido.") }

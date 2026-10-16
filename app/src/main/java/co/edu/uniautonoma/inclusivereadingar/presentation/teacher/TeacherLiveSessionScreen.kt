@@ -47,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.edu.uniautonoma.inclusivereadingar.appContainer
-import co.edu.uniautonoma.inclusivereadingar.domain.model.LiveDomanRepertoire
 import co.edu.uniautonoma.inclusivereadingar.domain.model.StudentGroup
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel.TeacherLiveSessionUiState
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel.TeacherLiveSessionViewModel
@@ -69,12 +68,10 @@ fun TeacherLiveSessionRoute(onBack: () -> Unit) {
         onBack = onBack,
         onRetry = viewModel::loadSetup,
         onSelectGroup = viewModel::selectGroup,
-        onSelectRepertoire = viewModel::selectRepertoire,
         onSelectContentCategory = viewModel::selectContentCategory,
         onCreateCard = viewModel::createCard,
         onToggleCard = viewModel::toggleCard,
         onMoveCard = viewModel::moveCard,
-        onCreateRepertoire = viewModel::createRepertoire,
         onOpenRoom = viewModel::openRoom,
         onRefreshRoom = viewModel::refreshRoom,
         onCommand = viewModel::command
@@ -87,12 +84,10 @@ fun TeacherLiveSessionScreen(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onSelectGroup: (String) -> Unit,
-    onSelectRepertoire: (String) -> Unit,
     onSelectContentCategory: (String) -> Unit,
     onCreateCard: (String) -> Unit,
     onToggleCard: (String) -> Unit,
     onMoveCard: (String, Int) -> Unit,
-    onCreateRepertoire: (String) -> Unit,
     onOpenRoom: () -> Unit,
     onRefreshRoom: () -> Unit,
     onCommand: (String) -> Unit
@@ -105,12 +100,10 @@ fun TeacherLiveSessionScreen(
                 onBack = onBack,
                 onRetry = onRetry,
                 onSelectGroup = onSelectGroup,
-                onSelectRepertoire = onSelectRepertoire,
                 onSelectContentCategory = onSelectContentCategory,
                 onCreateCard = onCreateCard,
                 onToggleCard = onToggleCard,
                 onMoveCard = onMoveCard,
-                onCreateRepertoire = onCreateRepertoire,
                 onOpenRoom = onOpenRoom
             )
             else -> TeacherRoomControl(
@@ -129,12 +122,10 @@ private fun RoomSetup(
     onBack: () -> Unit,
     onRetry: () -> Unit,
     onSelectGroup: (String) -> Unit,
-    onSelectRepertoire: (String) -> Unit,
     onSelectContentCategory: (String) -> Unit,
     onCreateCard: (String) -> Unit,
     onToggleCard: (String) -> Unit,
     onMoveCard: (String, Int) -> Unit,
-    onCreateRepertoire: (String) -> Unit,
     onOpenRoom: () -> Unit
 ) {
     LazyColumn(
@@ -154,32 +145,23 @@ private fun RoomSetup(
                 SelectableGroup(group, group.id == state.selectedGroupId, onSelectGroup)
             }
         }
-        item { Text("2. Elige el repertorio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) }
-        if (state.repertoires.isEmpty()) {
-            item { EmptySetup("Aún no hay repertorios. Puedes preparar uno aquí mismo antes de abrir la sala.") }
-        } else {
-            items(state.repertoires, key = { it.id }) { repertoire ->
-                SelectableRepertoire(repertoire, repertoire.id == state.selectedRepertoireId, onSelectRepertoire)
-            }
-        }
         item {
             LiveContentBuilder(
                 state = state,
                 onSelectCategory = onSelectContentCategory,
                 onCreateCard = onCreateCard,
                 onToggleCard = onToggleCard,
-                onMoveCard = onMoveCard,
-                onCreateRepertoire = onCreateRepertoire
+                onMoveCard = onMoveCard
             )
         }
         item {
             Button(
                 onClick = onOpenRoom,
-                enabled = !state.isSubmitting && state.selectedGroupId != null && state.selectedRepertoireId != null,
+                enabled = !state.isSubmitting && state.selectedGroupId != null && state.selectedCardIds.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).sizeIn(minHeight = 48.dp)
             ) {
                 if (state.isSubmitting) CircularProgressIndicator(modifier = Modifier.sizeIn(maxWidth = 20.dp, maxHeight = 20.dp), strokeWidth = 2.dp)
-                else Text("Abrir sala")
+                else Text("Crear y abrir sala con ${state.selectedCardIds.size} tarjetas")
             }
         }
     }
@@ -191,11 +173,9 @@ private fun LiveContentBuilder(
     onSelectCategory: (String) -> Unit,
     onCreateCard: (String) -> Unit,
     onToggleCard: (String) -> Unit,
-    onMoveCard: (String, Int) -> Unit,
-    onCreateRepertoire: (String) -> Unit
+    onMoveCard: (String, Int) -> Unit
 ) {
     var cardText by remember { mutableStateOf("") }
-    var repertoireName by remember { mutableStateOf("") }
     val categoryId = state.selectedContentCategoryId
     val cards = state.cards.filter { it.categoryId == categoryId && it.status == "active" }
     Surface(
@@ -207,9 +187,9 @@ private fun LiveContentBuilder(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("3. Prepara el repertorio", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("2. Elige las tarjetas", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(
-                "El orden elegido será el orden de presentación para el grupo.",
+                "Selecciona entre 1 y 10 tarjetas. El número indica el orden en que aparecerán.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (state.categories.isEmpty()) {
@@ -274,20 +254,11 @@ private fun LiveContentBuilder(
                     }
                 }
             }
-            OutlinedTextField(
-                value = repertoireName,
-                onValueChange = { repertoireName = it },
-                label = { Text("Nombre del repertorio") },
-                supportingText = { Text("Incluye al menos una tarjeta.") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isSubmitting
+            Text(
+                "${state.selectedCardIds.size} de 10 tarjetas seleccionadas",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
             )
-            Button(
-                onClick = { onCreateRepertoire(repertoireName); repertoireName = "" },
-                enabled = !state.isSubmitting && categoryId != null && repertoireName.isNotBlank() && state.selectedCardIds.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp)
-            ) { Text("Crear repertorio con ${state.selectedCardIds.size} tarjetas") }
         }
     }
 }
@@ -372,20 +343,6 @@ private fun SelectableGroup(group: StudentGroup, selected: Boolean, onSelect: (S
         Column(Modifier.padding(16.dp)) {
             Text(group.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Text("${group.studentIds.size} estudiantes", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-@Composable
-private fun SelectableRepertoire(item: LiveDomanRepertoire, selected: Boolean, onSelect: (String) -> Unit) {
-    Card(
-        onClick = { onSelect(item.id) },
-        modifier = Modifier.fillMaxWidth().semantics { this.selected = selected; role = Role.RadioButton },
-        colors = CardDefaults.cardColors(containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(item.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text("${item.cardCount} tarjetas", color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
