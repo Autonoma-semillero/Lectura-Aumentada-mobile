@@ -1,5 +1,6 @@
 package co.edu.uniautonoma.inclusivereadingar.data.remote
 
+import android.util.Log
 import co.edu.uniautonoma.inclusivereadingar.config.BackendConfig
 import co.edu.uniautonoma.inclusivereadingar.data.local.SessionStore
 import co.edu.uniautonoma.inclusivereadingar.domain.model.LiveDomanParticipant
@@ -36,15 +37,19 @@ class LiveDomanRealtimeClient(private val sessionStore: SessionStore) {
         val channel = realtime.channels.get("live-doman:session:$sessionId:$audience")
         channel.subscribe("live.session.updated") { message ->
             runCatching {
-                val root = JSONObject(message.data.toString())
+                val root = messageDataAsJson(message.data)
                 parseLiveSession(root.getJSONObject("session"))
-            }.onSuccess(onSession)
+            }.onSuccess(onSession).onFailure { error ->
+                Log.w(TAG, "Could not decode live.session.updated", error)
+            }
         }
         if (audience == "teacher") {
             channel.subscribe("live.participants.updated") { message ->
                 runCatching {
-                    parseLiveParticipants(JSONObject(message.data.toString()).optJSONArray("participants") ?: org.json.JSONArray())
-                }.onSuccess(onParticipants)
+                    parseLiveParticipants(messageDataAsJson(message.data).optJSONArray("participants") ?: org.json.JSONArray())
+                }.onSuccess(onParticipants).onFailure { error ->
+                    Log.w(TAG, "Could not decode live.participants.updated", error)
+                }
             }
         }
         realtime.connection.on(io.ably.lib.realtime.ConnectionEvent.connected) { onConnection(true) }
@@ -62,7 +67,9 @@ class LiveDomanRealtimeClient(private val sessionStore: SessionStore) {
         val realtime = AblyRealtime(optionsFor("/doman/live-realtime-token"))
         val channel = realtime.channels.get("live-doman:student:${session.user.id}")
         channel.subscribe("live.room.opened") { message ->
-            runCatching { JSONObject(message.data.toString()).getString("session_id") }.onSuccess(onRoomOpened)
+            runCatching { messageDataAsJson(message.data).getString("session_id") }
+                .onSuccess(onRoomOpened)
+                .onFailure { error -> Log.w(TAG, "Could not decode live.room.opened", error) }
         }
         realtime.connection.on(io.ably.lib.realtime.ConnectionEvent.connected) { onConnection(true) }
         realtime.connection.on(io.ably.lib.realtime.ConnectionEvent.disconnected) { onConnection(false) }
@@ -81,5 +88,17 @@ class LiveDomanRealtimeClient(private val sessionStore: SessionStore) {
             authHeaders = arrayOf(Param("Authorization", "Bearer $accessToken"))
             useTokenAuth = true
         }
+    }
+
+    private fun messageDataAsJson(data: Any?): JSONObject = when (data) {
+        is JSONObject -> data
+        is ByteArray -> JSONObject(data.toString(Charsets.UTF_8))
+        is String -> JSONObject(data)
+        is Map<*, *> -> JSONObject(data)
+        else -> JSONObject(requireNotNull(data) { "Ably message data is missing" }.toString())
+    }
+
+    private companion object {
+        const val TAG = "LiveDomanRealtime"
     }
 }
