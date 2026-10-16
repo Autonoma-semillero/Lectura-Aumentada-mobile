@@ -21,7 +21,7 @@ val localProperties = Properties().apply {
 val backendBaseUrl = (
     findProperty("backendBaseUrl") as String?
         ?: localProperties.getProperty("backendBaseUrl")
-        ?: "https://lectura-aumentada-back-end-6kt1.vercel.app"
+        ?: "https://lectura-aumentada-backend-jc.vercel.app"
 ).trim().removeSuffix("/")
 
 android {
