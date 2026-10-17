@@ -108,6 +108,9 @@ dependencies {
     implementation("io.ably:ably-android:1.8.1")
     // Bundled Latin model: OCR works immediately and camera frames never leave the device.
     implementation(libs.mlkit.text.recognition)
+    // Animated mascot (Rive runtime + startup initializer).
+    implementation(libs.rive.android)
+    implementation(libs.androidx.startup.runtime)
 
     testImplementation(libs.junit)
     testImplementation(libs.truth)
