@@ -46,6 +46,10 @@ await copyFile(
   resolve(projectRoot, "node_modules/@ar-js-org/ar.js/aframe/build/aframe-ar.js"),
   resolve(outputRoot, "vendor/aframe-ar.js"),
 );
+await copyFile(
+  resolve(sourceRoot, "index-float.html"),
+  resolve(outputRoot, "index-float.html"),
+);
 
 console.log(`WebAR assets generated in ${outputRoot}`);
 console.log(`DPDB remoto desactivado en aframe.min.js (${patchedDpdbUrls} URL)`);

@@ -624,20 +624,20 @@ fun WebArScreen(
     }
 }
 
-private class LegacyWebArBridge(
+internal class LegacyWebArBridge(
     private val onMessage: (String) -> Unit
 ) {
     @JavascriptInterface
     fun postMessage(message: String) = onMessage(message)
 }
 
-private fun Uri?.isTrustedWebArOrigin(): Boolean {
+internal fun Uri?.isTrustedWebArOrigin(): Boolean {
     if (this == null) return false
     val trusted = Uri.parse(WebArConfig.TRUSTED_ORIGIN)
     return scheme == trusted.scheme && host == trusted.host && effectivePort() == trusted.effectivePort()
 }
 
-private fun Uri?.isAllowedWebArNavigation(): Boolean {
+internal fun Uri?.isAllowedWebArNavigation(): Boolean {
     if (this == null) return false
     if (toString() == "about:blank") return true
     return isTrustedWebArOrigin()
@@ -776,14 +776,14 @@ internal fun shouldProcessWebArBridgeEvent(
     }
 }
 
-private fun webArDocumentUrl(sessionId: String): String =
-    Uri.parse(WebArConfig.WEB_AR_URL)
+internal fun webArDocumentUrl(sessionId: String, baseUrl: String = WebArConfig.WEB_AR_URL): String =
+    Uri.parse(baseUrl)
         .buildUpon()
         .appendQueryParameter(WEB_AR_SESSION_QUERY, sessionId)
         .build()
         .toString()
 
-private fun String?.webArDocumentSessionId(): String? {
+internal fun String?.webArDocumentSessionId(): String? {
     val uri = this?.let { runCatching { Uri.parse(it) }.getOrNull() } ?: return null
     val configuredUri = Uri.parse(WebArConfig.WEB_AR_URL)
     if (!uri.isTrustedWebArOrigin() || uri.path != configuredUri.path) return null
@@ -792,4 +792,4 @@ private fun String?.webArDocumentSessionId(): String? {
 
 private const val WEB_AR_LOG_TAG = "WebArOcr"
 private const val WEB_AR_RELOAD_FALLBACK_MS = 750L
-private const val WEB_AR_SESSION_QUERY = "nativeSession"
+internal const val WEB_AR_SESSION_QUERY = "nativeSession"
