@@ -2,7 +2,9 @@ package co.edu.uniautonoma.inclusivereadingar.presentation.webar
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
+import android.hardware.SensorManager
 import android.net.Uri
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
@@ -20,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,6 +42,9 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.screens.isTrustedWebAr
 import co.edu.uniautonoma.inclusivereadingar.presentation.screens.webArDocumentUrl
 import java.util.UUID
 
+/** Pushes at most this often; faster than this just floods the bridge without a visible benefit. */
+private const val ORIENTATION_PUSH_INTERVAL_MS = 50L
+
 /**
  * Mount for the floating-card WebAR engine (`webar/index-float.html`): camera permission,
  * [WebViewAssetLoader] wiring and lifecycle teardown shared with [co.edu.uniautonoma.inclusivereadingar.presentation.screens.WebArScreen].
@@ -47,6 +53,12 @@ import java.util.UUID
  * (see `WebArConfig.WEB_AR_FLOAT_URL`), so both WebViews keep loading independent documents
  * without interfering with each other. [displayText] is pushed into the live document via
  * `window.WebAR.updateCardWord(...)` whenever it changes.
+ *
+ * `android.webkit.WebView` never dispatches the web `deviceorientation` event (confirmed live
+ * via Chrome DevTools Protocol: zero events over several seconds despite a granted permission
+ * and an allowing Permissions Policy), so the phone's physical rotation is read natively via
+ * [DeviceOrientationTracker] and pushed in through `window.WebAR.updateCameraOrientation(...)`
+ * instead of relying on a browser event the WebView doesn't deliver.
  */
 @SuppressLint("SetJavaScriptEnabled") // Required by the bundled A-Frame/AR.js runtime on a locked origin.
 @Composable
@@ -62,6 +74,10 @@ fun WebArContainer(
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var pendingPermissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
     val sessionId = remember { UUID.randomUUID().toString() }
+    val latestDisplayText by rememberUpdatedState(displayText)
+    val orientationTracker = remember {
+        DeviceOrientationTracker(context.getSystemService(Context.SENSOR_SERVICE) as SensorManager)
+    }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -103,6 +119,7 @@ fun WebArContainer(
 
     DisposableEffect(Unit) {
         onDispose {
+            orientationTracker.stop()
             pendingPermissionRequest?.deny()
             pendingPermissionRequest = null
             try {
@@ -198,13 +215,39 @@ fun WebArContainer(
                     }
                 }
 
+                var lastOrientationPushAtMs = 0L
                 val handleBridgeMessage: (String) -> Unit = { rawMessage ->
                     runCatching { org.json.JSONObject(rawMessage) }
                         .onSuccess { message ->
                             post {
                                 if (this !== webViewRef) return@post
                                 when (message.optString("type")) {
-                                    "camera-ready" -> onCameraReady()
+                                    "camera-ready" -> {
+                                        onCameraReady()
+                                        // The native push in the LaunchedEffect below can land
+                                        // before `window.WebAR` exists (page still loading), so
+                                        // re-send the latest word once the scene confirms it's
+                                        // ready to receive it.
+                                        latestDisplayText?.takeIf(String::isNotBlank)?.let { word ->
+                                            evaluateJavascript(
+                                                "window.WebAR && window.WebAR.updateCardWord(${org.json.JSONObject.quote(word)});",
+                                                null
+                                            )
+                                        }
+                                        orientationTracker.start { quaternion ->
+                                            val now = System.currentTimeMillis()
+                                            if (now - lastOrientationPushAtMs < ORIENTATION_PUSH_INTERVAL_MS) return@start
+                                            lastOrientationPushAtMs = now
+                                            post {
+                                                if (this !== webViewRef) return@post
+                                                evaluateJavascript(
+                                                    "window.WebAR && window.WebAR.updateCameraOrientation(" +
+                                                        "${quaternion.x}, ${quaternion.y}, ${quaternion.z}, ${quaternion.w});",
+                                                    null
+                                                )
+                                            }
+                                        }
+                                    }
                                     "runtime-error" -> onRuntimeError(
                                         message.optString(
                                             "message",

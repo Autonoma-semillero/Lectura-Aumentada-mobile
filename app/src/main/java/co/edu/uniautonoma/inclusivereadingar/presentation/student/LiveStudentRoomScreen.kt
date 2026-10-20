@@ -1,6 +1,8 @@
 package co.edu.uniautonoma.inclusivereadingar.presentation.student
 
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
+import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.StartOffset
@@ -23,10 +25,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -35,6 +41,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,10 +53,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -61,6 +71,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.edu.uniautonoma.inclusivereadingar.R
 import co.edu.uniautonoma.inclusivereadingar.appContainer
+import co.edu.uniautonoma.inclusivereadingar.config.BackendConfig
+import co.edu.uniautonoma.inclusivereadingar.domain.model.LiveDomanSession
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.LiveStudentRoomUiState
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.LiveStudentRoomViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.viewmodel.LiveStudentRoomViewModelFactory
@@ -304,6 +316,19 @@ private fun StudentClassRoom(uiState: LiveStudentRoomUiState, onToggleLocalPause
         hasCameraHardware = hasCameraHardware,
         arUnavailable = arUnavailable
     )
+
+    if (showArCamera) {
+        FullScreenArCard(
+            session = session,
+            isLocallyPaused = uiState.isLocallyPaused,
+            onCameraPermissionDenied = { arUnavailable = true },
+            onRuntimeError = { arUnavailable = true },
+            onToggleLocalPause = onToggleLocalPause,
+            onBackClick = onBackClick,
+        )
+        return
+    }
+
     val instruction = when {
         uiState.isLocallyPaused -> "La lectura está pausada en tu pantalla."
         session.status == "paused" -> "Tu profe pausó la clase."
@@ -311,28 +336,9 @@ private fun StudentClassRoom(uiState: LiveStudentRoomUiState, onToggleLocalPause
         else -> "Espera a tu profe."
     }
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("En clase", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text(if (uiState.isRealtimeConnected) "Clase en vivo" else "Sincronización automática", modifier = Modifier.padding(top = 4.dp), style = MaterialTheme.typography.labelLarge, color = if (uiState.isRealtimeConnected) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(instruction, modifier = Modifier.padding(top = 12.dp), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (showArCamera) {
-                WebArContainer(
-                    modifier = Modifier.clip(MaterialTheme.shapes.extraLarge),
-                    displayText = session.displayText,
-                    onCameraPermissionDenied = { arUnavailable = true },
-                    onRuntimeError = { arUnavailable = true }
-                )
-                Text(
-                    session.displayText.orEmpty(),
-                    modifier = Modifier
-                        .clearAndSetSemantics {
-                            liveRegion = LiveRegionMode.Polite
-                            contentDescription = session.displayText.orEmpty()
-                        }
-                        .size(1.dp),
-                    color = Color.Transparent
-                )
-            } else if (showingCard) {
+        Text(instruction, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
+            if (showingCard) {
                 Surface(modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }, shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.surfaceContainerHigh, tonalElevation = 3.dp) {
                     Text(session.displayText.orEmpty(), modifier = Modifier.padding(horizontal = 24.dp, vertical = 56.dp), color = MaterialTheme.colorScheme.onSurface, fontSize = 44.sp, lineHeight = 52.sp, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center)
                 }
@@ -342,5 +348,113 @@ private fun StudentClassRoom(uiState: LiveStudentRoomUiState, onToggleLocalPause
             OutlinedButton(onClick = onToggleLocalPause, modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp)) { Text(if (uiState.isLocallyPaused) "Reanudar lectura" else "Pausar lectura") }
         }
         OutlinedButton(onClick = onBackClick, modifier = Modifier.padding(top = 8.dp).fillMaxWidth().sizeIn(minHeight = 48.dp)) { Text("Volver al inicio") }
+    }
+}
+
+/**
+ * The approved mockup is a full-bleed camera view with no screen text at all (no "En clase" /
+ * status labels) — navigation and pause are the only real affordances a student needs here, so
+ * they stay as small icon-only controls instead of a text-heavy Column wrapped around the camera.
+ */
+@Composable
+private fun FullScreenArCard(
+    session: LiveDomanSession,
+    isLocallyPaused: Boolean,
+    onCameraPermissionDenied: () -> Unit,
+    onRuntimeError: (String) -> Unit,
+    onToggleLocalPause: () -> Unit,
+    onBackClick: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        WebArContainer(
+            modifier = Modifier.fillMaxSize(),
+            displayText = session.displayText,
+            onCameraPermissionDenied = onCameraPermissionDenied,
+            onRuntimeError = onRuntimeError,
+        )
+        Text(
+            session.displayText.orEmpty(),
+            modifier = Modifier
+                .clearAndSetSemantics {
+                    liveRegion = LiveRegionMode.Polite
+                    contentDescription = session.displayText.orEmpty()
+                }
+                .size(1.dp),
+            color = Color.Transparent
+        )
+        CardAutoAudio(session = session, isLocallyPaused = isLocallyPaused)
+        ArScreenControl(
+            icon = Icons.AutoMirrored.Rounded.ArrowBack,
+            contentDescription = "Volver al inicio",
+            onClick = onBackClick,
+            modifier = Modifier.align(Alignment.TopStart).statusBarsPadding().padding(16.dp),
+        )
+        if (session.status == "running") {
+            ArScreenControl(
+                icon = if (isLocallyPaused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                contentDescription = if (isLocallyPaused) "Reanudar lectura" else "Pausar lectura",
+                onClick = onToggleLocalPause,
+                modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ArScreenControl(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(LearningTokens.MinimumTouchTarget)
+            .clip(CircleShape)
+            .background(Color(0x9E26324B))
+            .clickable(onClick = onClick, role = Role.Button),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(24.dp))
+    }
+}
+
+/** Plays each card's pronunciation once as it appears; replays on "repeat" (a new [LiveDomanSession.sequence]). */
+@Composable
+private fun CardAutoAudio(session: LiveDomanSession, isLocallyPaused: Boolean) {
+    val context = LocalContext.current
+    var backendBaseUrl by remember { mutableStateOf(BackendConfig.DEFAULT_REMOTE_BASE_URL) }
+    LaunchedEffect(Unit) {
+        backendBaseUrl = context.appContainer().sessionStore.resolveBackendBaseUrl()
+    }
+
+    val shouldPlay = session.status == "running" && !isLocallyPaused && !session.displayAudioUrl.isNullOrBlank()
+    if (!shouldPlay) return
+
+    val resolvedUrl = resolveAudioPlaybackUrl(session.displayAudioUrl!!, backendBaseUrl)
+    val player = remember(resolvedUrl, session.sequence) { MediaPlayer() }
+
+    DisposableEffect(resolvedUrl, session.sequence) {
+        onDispose { player.release() }
+    }
+
+    LaunchedEffect(resolvedUrl, session.sequence) {
+        runCatching {
+            player.reset()
+            player.setDataSource(resolvedUrl)
+            player.setOnPreparedListener { it.start() }
+            player.setOnErrorListener { _, what, extra ->
+                Log.w("CardAutoAudio", "Playback failed for $resolvedUrl (what=$what, extra=$extra)")
+                true
+            }
+            player.prepareAsync()
+        }.onFailure { error ->
+            Log.w("CardAutoAudio", "Could not start playback for $resolvedUrl", error)
+        }
+    }
+}
+
+private fun resolveAudioPlaybackUrl(audioUrl: String, backendBaseUrl: String): String {
+    val value = audioUrl.trim()
+    val base = backendBaseUrl.removeSuffix("/")
+    return when {
+        value.startsWith("http://") || value.startsWith("https://") -> value
+        value.startsWith("/") -> "$base$value"
+        else -> "$base/$value"
     }
 }

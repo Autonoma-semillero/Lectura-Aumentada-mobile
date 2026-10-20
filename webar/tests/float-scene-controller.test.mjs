@@ -59,7 +59,7 @@ test("start rejects when WebGL is unavailable, without touching the camera", asy
   });
 });
 
-test("start mounts a camera-relative card root fed by the device camera stream", async () => {
+test("start mounts a world-anchored card root fed by the device camera stream", async () => {
   await withFakeDom({ webglSupported: true }, async () => {
     const previousNavigator = globalThis.navigator;
     const tracks = [{ stop: () => {}, stopped: false }];
@@ -82,11 +82,20 @@ test("start mounts a camera-relative card root fed by the device camera stream",
 
     assert.equal(ready, true);
     assert.equal(cardRoot.tagName, "a-entity");
-    assert.equal(cardRoot.parentElement.tagName, "a-entity");
+    assert.equal(cardRoot.parentElement.tagName, "a-scene");
+    assert.equal(controller.camera.attributes.get("id"), "float-camera");
     assert.equal(root.children.some((child) => child.tagName === "a-scene"), true);
+
+    controller.camera.object3D = { quaternion: { set(x, y, z, w) { Object.assign(this, { x, y, z, w }); } } };
+    controller.setCameraQuaternion(0.1, 0.2, 0.3, 0.9);
+    assert.deepEqual(
+      { x: controller.camera.object3D.quaternion.x, y: controller.camera.object3D.quaternion.y, z: controller.camera.object3D.quaternion.z, w: controller.camera.object3D.quaternion.w },
+      { x: 0.1, y: 0.2, z: 0.3, w: 0.9 }
+    );
 
     controller.stop();
     assert.equal(controller.scene, null);
+    assert.doesNotThrow(() => controller.setCameraQuaternion(0, 0, 0, 1));
 
     Object.defineProperty(globalThis, "navigator", { configurable: true, value: previousNavigator });
   });

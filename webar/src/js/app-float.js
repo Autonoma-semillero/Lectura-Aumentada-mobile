@@ -1,4 +1,3 @@
-import { CardTextController } from "./card-text-controller.js";
 import { FloatSceneController } from "./float-scene-controller.js";
 import { FloatingCardController } from "./floating-card-controller.js";
 import { NativeBridge, parseNativeMessage } from "./native-bridge.js";
@@ -6,8 +5,19 @@ import { probeXrCapabilities } from "./xr-capabilities.js";
 
 const HARDCODED_INITIAL_WORD = "ejemplo";
 
+// The native side can push the live session word before `cardController` exists
+// (the card mounts only after the async camera permission flow resolves), so the
+// latest requested word is remembered here and applied once mounting catches up.
+let pendingWord = HARDCODED_INITIAL_WORD;
+
+function setCardWord(word) {
+  pendingWord = word;
+  cardController?.setWord(word);
+}
+
 const elements = {
   root: document.querySelector("#ar-root"),
+  chrome: document.querySelector("#float-chrome"),
   activation: document.querySelector("#activation"),
   loading: document.querySelector("#loading"),
   errorCard: document.querySelector("#error-card"),
@@ -15,9 +25,6 @@ const elements = {
   activate: document.querySelector("#activate-camera"),
   retry: document.querySelector("#retry-camera"),
   compatibility: document.querySelector("#compatibility"),
-  mainStatus: document.querySelector("#main-status"),
-  cameraState: document.querySelector("#camera-state"),
-  webxrState: document.querySelector("#webxr-state"),
 };
 
 const bridge = new NativeBridge();
@@ -25,15 +32,13 @@ const sceneController = new FloatSceneController({
   root: elements.root,
   onCameraReady: () => {
     showOnly(null);
-    setText(elements.cameraState, "activa");
-    setText(elements.mainStatus, "Tarjeta flotante activa");
+    elements.chrome?.classList.remove("hidden");
     bridge.send("camera-ready");
   },
   onCameraError: showCameraError,
 });
 
 let cardController = null;
-let textController = null;
 
 elements.activate?.addEventListener("click", () => void activateCamera());
 elements.retry?.addEventListener("click", () => void activateCamera());
@@ -45,21 +50,16 @@ window.addEventListener("beforeunload", () => stop());
 
 async function activateCamera() {
   showOnly(elements.loading);
-  setText(elements.cameraState, "solicitando permiso");
-  setText(elements.mainStatus, "Preparando cámara…");
   if (elements.activate) elements.activate.disabled = true;
   if (elements.retry) elements.retry.disabled = true;
   try {
     const capabilities = await probeXrCapabilities();
-    setText(elements.webxrState, capabilities.webxr ? "compatible" : "no disponible (HUD-3D)");
     if (!capabilities.camera) {
       throw new Error("Este dispositivo no ofrece una cámara web compatible.");
     }
     const cardRoot = await sceneController.start();
     cardController = new FloatingCardController({ cardRoot });
-    cardController.mount();
-    textController = new CardTextController({ parent: cardController.plane });
-    textController.mount(HARDCODED_INITIAL_WORD);
+    cardController.mount(pendingWord);
   } catch (error) {
     showCameraError(error instanceof Error ? error.message : "No fue posible iniciar la cámara");
   } finally {
@@ -73,7 +73,7 @@ function receiveNativeMessage(rawMessage) {
     const message = parseNativeMessage(rawMessage);
     switch (message.type) {
       case "update-card-word":
-        textController?.setWord(message.word);
+        setCardWord(message.word);
         break;
       case "camera-permission-denied":
         showCameraError("La cámara es necesaria para mostrar la tarjeta flotante.");
@@ -89,12 +89,9 @@ function receiveNativeMessage(rawMessage) {
 function showCameraError(message) {
   sceneController.stop();
   cardController?.unmount();
-  textController?.unmount();
   cardController = null;
-  textController = null;
+  elements.chrome?.classList.add("hidden");
   if (elements.errorMessage) elements.errorMessage.textContent = message;
-  setText(elements.cameraState, "error");
-  setText(elements.mainStatus, "Cámara no disponible");
   showOnly(elements.errorCard);
   reportRuntimeError(message);
 }
@@ -109,12 +106,9 @@ function reportRuntimeError(message) {
 
 function stop({ showActivation = false } = {}) {
   cardController?.unmount();
-  textController?.unmount();
   cardController = null;
-  textController = null;
   sceneController.stop();
-  setText(elements.cameraState, "inactiva");
-  setText(elements.mainStatus, "Cámara inactiva");
+  elements.chrome?.classList.add("hidden");
   if (showActivation) showOnly(elements.activation);
 }
 
@@ -124,17 +118,17 @@ function showOnly(element) {
   }
 }
 
-function setText(element, value) {
-  if (element) element.textContent = value;
-}
+window.WebAR = Object.freeze({
+  receiveNativeMessage,
+  stop,
+  updateCardWord: setCardWord,
+  updateCameraOrientation: (x, y, z, w) => sceneController.setCameraQuaternion(x, y, z, w),
+});
 
-window.WebAR = Object.freeze({ receiveNativeMessage, stop, updateCardWord: (word) => textController?.setWord(word) });
-
-void probeXrCapabilities().then(({ camera, webxr }) => {
+void probeXrCapabilities().then(({ camera }) => {
   if (elements.compatibility) {
     elements.compatibility.textContent = camera
       ? "Dispositivo listo para solicitar permiso."
       : "Este dispositivo no expone una cámara compatible.";
   }
-  setText(elements.webxrState, webxr ? "compatible" : "no disponible (HUD-3D)");
 });

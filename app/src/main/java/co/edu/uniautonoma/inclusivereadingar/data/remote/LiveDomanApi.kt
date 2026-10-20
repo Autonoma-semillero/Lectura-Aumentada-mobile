@@ -191,6 +191,7 @@ internal fun parseLiveSession(item: JSONObject): LiveDomanSession {
             sequence = item.optInt("presentation_sequence", item.optInt("sequence", 0)),
             displayText = card?.optString("display_text")?.ifBlank { null }
                 ?: item.optString("display_text").ifBlank { null },
+            displayAudioUrl = card?.optString("audio_url")?.ifBlank { null },
             displayDurationMs = presentation?.optInt("display_ms", 0)
                 ?: item.optInt("display_duration_ms", item.optInt("display_ms", 0))
         )
