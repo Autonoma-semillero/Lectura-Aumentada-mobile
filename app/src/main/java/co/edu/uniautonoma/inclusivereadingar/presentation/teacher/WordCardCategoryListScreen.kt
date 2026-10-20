@@ -49,7 +49,8 @@ fun WordCardCategoryListRoute(
     onBack: () -> Unit,
     onCategoryClick: (Category) -> Unit,
     onThemesClick: () -> Unit,
-    onStudentsClick: () -> Unit
+    onStudentsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -67,7 +68,8 @@ fun WordCardCategoryListRoute(
         onRetry = viewModel::load,
         onThemesClick = onThemesClick,
         onStudentsClick = onStudentsClick,
-        onWordCardsClick = {}
+        onWordCardsClick = {},
+        onRoomsClick = onRoomsClick
     )
 }
 
@@ -81,7 +83,8 @@ fun WordCardCategoryListScreen(
     onRetry: () -> Unit,
     onThemesClick: () -> Unit,
     onStudentsClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
 
@@ -175,7 +178,8 @@ fun WordCardCategoryListScreen(
             activeTab = TeacherTab.WORD_CARDS,
             onThemesClick = onThemesClick,
             onStudentsClick = onStudentsClick,
-            onWordCardsClick = onWordCardsClick
+            onWordCardsClick = onWordCardsClick,
+            onRoomsClick = onRoomsClick
         )
     }
 }

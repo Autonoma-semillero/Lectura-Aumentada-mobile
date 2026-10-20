@@ -68,7 +68,8 @@ fun DocenteCompletedCardsRoute(
     onBack: () -> Unit,
     onStudentsClick: () -> Unit,
     onThemesClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -87,6 +88,7 @@ fun DocenteCompletedCardsRoute(
         onStudentsClick = onStudentsClick,
         onThemesClick = onThemesClick,
         onWordCardsClick = onWordCardsClick,
+        onRoomsClick = onRoomsClick,
         onLoadMore = viewModel::loadMore,
         onRetry = viewModel::retry
     )
@@ -101,6 +103,7 @@ fun DocenteCompletedCardsScreen(
     onStudentsClick: () -> Unit,
     onThemesClick: () -> Unit,
     onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit,
     onLoadMore: () -> Unit,
     onRetry: () -> Unit
 ) {
@@ -322,7 +325,8 @@ fun DocenteCompletedCardsScreen(
             activeTab = TeacherTab.STUDENTS,
             onThemesClick = onThemesClick,
             onStudentsClick = onStudentsClick,
-            onWordCardsClick = onWordCardsClick
+            onWordCardsClick = onWordCardsClick,
+            onRoomsClick = onRoomsClick
         )
     }
 }

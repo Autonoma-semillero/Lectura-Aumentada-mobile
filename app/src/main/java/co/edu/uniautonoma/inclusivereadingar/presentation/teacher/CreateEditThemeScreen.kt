@@ -62,7 +62,8 @@ private val TeacherThemeIcons = listOf(
 fun CreateEditThemeRoute(
     themeId: String?,
     onBack: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -86,7 +87,8 @@ fun CreateEditThemeRoute(
         onSortOrderChange = viewModel::updateSortOrder,
         onDescriptionChange = viewModel::updateDescription,
         onSaveClick = viewModel::save,
-        onWordCardsClick = onWordCardsClick
+        onWordCardsClick = onWordCardsClick,
+        onRoomsClick = onRoomsClick
     )
 }
 
@@ -100,7 +102,8 @@ fun CreateEditThemeScreen(
     onSortOrderChange: (Int) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onSaveClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
 
@@ -289,7 +292,8 @@ fun CreateEditThemeScreen(
             activeTab = TeacherTab.THEMES,
             onThemesClick = onBack,
             onStudentsClick = onBack,
-            onWordCardsClick = onWordCardsClick
+            onWordCardsClick = onWordCardsClick,
+            onRoomsClick = onRoomsClick
         )
     }
 }

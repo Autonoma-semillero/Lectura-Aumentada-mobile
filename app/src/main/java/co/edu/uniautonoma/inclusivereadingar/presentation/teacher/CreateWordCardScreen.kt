@@ -97,7 +97,8 @@ fun CreateWordCardRoute(
     onBack: () -> Unit,
     onThemesClick: () -> Unit = onBack,
     onStudentsClick: () -> Unit = onBack,
-    onWordCardsClick: () -> Unit = onBack
+    onWordCardsClick: () -> Unit = onBack,
+    onRoomsClick: () -> Unit = onBack
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -139,7 +140,8 @@ fun CreateWordCardRoute(
         onSaveClick = viewModel::save,
         onThemesClick = onThemesClick,
         onStudentsClick = onStudentsClick,
-        onWordCardsClick = onWordCardsClick
+        onWordCardsClick = onWordCardsClick,
+        onRoomsClick = onRoomsClick
     )
 }
 
@@ -160,7 +162,8 @@ fun CreateWordCardScreen(
     onSaveClick: () -> Unit,
     onThemesClick: () -> Unit = onBack,
     onStudentsClick: () -> Unit = onBack,
-    onWordCardsClick: () -> Unit = {}
+    onWordCardsClick: () -> Unit = {},
+    onRoomsClick: () -> Unit = onBack
 ) {
     val context = LocalContext.current
     val primary = Color(0xFFE53734)
@@ -622,7 +625,8 @@ fun CreateWordCardScreen(
             activeTab = TeacherTab.WORD_CARDS,
             onThemesClick = onThemesClick,
             onStudentsClick = onStudentsClick,
-            onWordCardsClick = onWordCardsClick
+            onWordCardsClick = onWordCardsClick,
+            onRoomsClick = onRoomsClick
         )
     }
 }

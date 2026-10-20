@@ -51,6 +51,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudent
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherStudentsRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.WordCardCategoryListRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherLiveSessionRoute
+import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.TeacherRoomsRoute
 
 @Composable
 fun AppNavHost() {
@@ -149,12 +150,21 @@ fun AppNavHost() {
                 onEditThemeClick = { themeId -> navController.navigateToTeacherThemeForm(themeId) },
                 onWordCardsClick = navController::navigateToTeacherWordCards,
                 onStudentsClick = navController::navigateToTeacherStudents,
-                onLiveSessionClick = { navController.navigate(AppDestinations.TEACHER_LIVE_SESSION_ROUTE) }
+                onRoomsClick = navController::navigateToTeacherRooms
+            )
+        }
+
+        composable(route = AppDestinations.TEACHER_ROOMS_ROUTE) {
+            TeacherRoomsRoute(
+                onCreateRoom = { navController.navigate(AppDestinations.TEACHER_LIVE_SESSION_ROUTE) },
+                onThemesClick = navController::navigateToTeacherThemes,
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onWordCardsClick = navController::navigateToTeacherWordCards
             )
         }
 
         composable(route = AppDestinations.TEACHER_LIVE_SESSION_ROUTE) {
-            TeacherLiveSessionRoute(onBack = navController::navigateBackOrTeacherThemes)
+            TeacherLiveSessionRoute(onBack = navController::navigateBackOrTeacherRooms)
         }
 
         composable(route = AppDestinations.TEACHER_STUDENTS_ROUTE) {
@@ -162,6 +172,7 @@ fun AppNavHost() {
                 onBack = navController::navigateBackOrTeacherThemes,
                 onThemesClick = navController::navigateToTeacherThemes,
                 onWordCardsClick = navController::navigateToTeacherWordCards,
+                onRoomsClick = navController::navigateToTeacherRooms,
                 onGroupsClick = navController::navigateToTeacherGroups,
                 onAssignPlanClick = {
                     navController.navigate(AppDestinations.teacherPlanAssignmentRoute()) {
@@ -221,7 +232,8 @@ fun AppNavHost() {
                 onBack = navController::navigateBackOrTeacherStudents,
                 onStudentsClick = navController::navigateToTeacherStudents,
                 onThemesClick = navController::navigateToTeacherThemes,
-                onWordCardsClick = navController::navigateToTeacherWordCards
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onRoomsClick = navController::navigateToTeacherRooms
             )
         }
 
@@ -239,6 +251,7 @@ fun AppNavHost() {
                 onStudentsClick = navController::navigateToTeacherStudents,
                 onThemesClick = navController::navigateToTeacherThemes,
                 onWordCardsClick = navController::navigateToTeacherWordCards,
+                onRoomsClick = navController::navigateToTeacherRooms,
                 onCompletedCardsClick = { studentId, categoryId, categoryName, phase2Ready ->
                     navController.navigate(
                         AppDestinations.teacherCompletedCardsRoute(studentId, categoryId, categoryName, phase2Ready)
@@ -264,7 +277,8 @@ fun AppNavHost() {
                 onBack = { navController.navigateBackOrTeacherStudents() },
                 onStudentsClick = navController::navigateToTeacherStudents,
                 onThemesClick = navController::navigateToTeacherThemes,
-                onWordCardsClick = navController::navigateToTeacherWordCards
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onRoomsClick = navController::navigateToTeacherRooms
             )
         }
 
@@ -281,7 +295,8 @@ fun AppNavHost() {
             CreateEditThemeRoute(
                 themeId = entry.arguments?.getString("themeId"),
                 onBack = navController::navigateBackOrTeacherThemes,
-                onWordCardsClick = navController::navigateToTeacherWordCards
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onRoomsClick = navController::navigateToTeacherRooms
             )
         }
 
@@ -294,7 +309,8 @@ fun AppNavHost() {
                     )
                 },
                 onThemesClick = navController::navigateToTeacherThemes,
-                onStudentsClick = navController::navigateToTeacherStudents
+                onStudentsClick = navController::navigateToTeacherStudents,
+                onRoomsClick = navController::navigateToTeacherRooms
             )
         }
 
@@ -319,7 +335,8 @@ fun AppNavHost() {
                 },
                 onThemesClick = navController::navigateToTeacherThemes,
                 onStudentsClick = navController::navigateToTeacherStudents,
-                onWordCardsClick = navController::navigateToTeacherWordCards
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onRoomsClick = navController::navigateToTeacherRooms
             )
         }
 
@@ -339,7 +356,8 @@ fun AppNavHost() {
                 onBack = navController::navigateBackOrTeacherWordCards,
                 onThemesClick = navController::navigateToTeacherThemes,
                 onStudentsClick = navController::navigateToTeacherStudents,
-                onWordCardsClick = navController::navigateToTeacherWordCards
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onRoomsClick = navController::navigateToTeacherRooms
             )
         }
 
@@ -355,7 +373,8 @@ fun AppNavHost() {
                 onBack = navController::navigateBackOrTeacherWordCards,
                 onThemesClick = navController::navigateToTeacherThemes,
                 onStudentsClick = navController::navigateToTeacherStudents,
-                onWordCardsClick = navController::navigateToTeacherWordCards
+                onWordCardsClick = navController::navigateToTeacherWordCards,
+                onRoomsClick = navController::navigateToTeacherRooms
             )
         }
 
@@ -458,6 +477,18 @@ private fun NavHostController.navigateToTeacherStudents() {
 private fun NavHostController.navigateToTeacherGroups() {
     navigate(AppDestinations.TEACHER_GROUPS_ROUTE) {
         launchSingleTop = true
+    }
+}
+
+private fun NavHostController.navigateToTeacherRooms() {
+    navigate(AppDestinations.TEACHER_ROOMS_ROUTE) {
+        launchSingleTop = true
+    }
+}
+
+private fun NavHostController.navigateBackOrTeacherRooms() {
+    if (!popBackStack()) {
+        navigateToTeacherRooms()
     }
 }
 

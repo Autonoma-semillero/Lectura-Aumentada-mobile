@@ -20,6 +20,7 @@ interface LiveDomanDataSource {
         error("La creación de repertorios Live Doman no está disponible.")
     suspend fun createSession(groupId: String, repertoireId: String): LiveDomanSession
     suspend fun getCurrent(): List<LiveDomanSession>
+    suspend fun listSessions(): List<LiveDomanSession>
     suspend fun getSession(sessionId: String): LiveDomanSessionDetail
     suspend fun join(sessionId: String): LiveDomanSession
     suspend fun heartbeat(sessionId: String) = Unit
@@ -51,6 +52,7 @@ class LiveDomanRepository(
     override suspend fun createSession(groupId: String, repertoireId: String) =
         api.createSession(groupId, repertoireId, requireSession().accessToken)
     override suspend fun getCurrent() = api.getCurrent(requireSession().accessToken)
+    override suspend fun listSessions() = api.listSessions(requireSession().accessToken)
     override suspend fun getSession(sessionId: String) = api.getSession(sessionId, requireSession().accessToken)
     override suspend fun join(sessionId: String) = api.join(sessionId, requireSession().accessToken)
     override suspend fun heartbeat(sessionId: String) = api.heartbeat(sessionId, requireSession().accessToken)

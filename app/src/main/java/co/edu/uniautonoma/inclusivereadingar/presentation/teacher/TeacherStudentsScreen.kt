@@ -56,6 +56,7 @@ fun TeacherStudentsRoute(
     onBack: () -> Unit,
     onThemesClick: () -> Unit,
     onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit,
     onGroupsClick: () -> Unit,
     onAssignPlanClick: () -> Unit,
     onPlansClick: (id: String, name: String) -> Unit,
@@ -73,6 +74,7 @@ fun TeacherStudentsRoute(
         onBack = onBack,
         onThemesClick = onThemesClick,
         onWordCardsClick = onWordCardsClick,
+        onRoomsClick = onRoomsClick,
         onGroupsClick = onGroupsClick,
         onAssignPlanClick = onAssignPlanClick,
         onPlansClick = onPlansClick,
@@ -87,6 +89,7 @@ fun TeacherStudentsScreen(
     onBack: () -> Unit,
     onThemesClick: () -> Unit,
     onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit,
     onGroupsClick: () -> Unit,
     onAssignPlanClick: () -> Unit,
     onPlansClick: (id: String, name: String) -> Unit,
@@ -214,7 +217,8 @@ fun TeacherStudentsScreen(
                 activeTab = TeacherTab.STUDENTS,
                 onThemesClick = onThemesClick,
                 onStudentsClick = {},
-                onWordCardsClick = onWordCardsClick
+                onWordCardsClick = onWordCardsClick,
+                onRoomsClick = onRoomsClick
             )
         }
     }

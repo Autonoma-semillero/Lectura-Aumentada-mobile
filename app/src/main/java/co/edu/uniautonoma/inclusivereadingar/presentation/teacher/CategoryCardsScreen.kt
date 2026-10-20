@@ -59,7 +59,8 @@ fun CategoryCardsRoute(
     onEditCardClick: (cardId: String) -> Unit,
     onThemesClick: () -> Unit,
     onStudentsClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -91,7 +92,8 @@ fun CategoryCardsRoute(
         onErrorDismiss = viewModel::clearError,
         onThemesClick = onThemesClick,
         onStudentsClick = onStudentsClick,
-        onWordCardsClick = onWordCardsClick
+        onWordCardsClick = onWordCardsClick,
+        onRoomsClick = onRoomsClick
     )
 }
 
@@ -115,7 +117,8 @@ fun CategoryCardsScreen(
     onErrorDismiss: () -> Unit,
     onThemesClick: () -> Unit,
     onStudentsClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
     val studentsById = students.associateBy { it.id }
@@ -262,7 +265,8 @@ fun CategoryCardsScreen(
                 activeTab = TeacherTab.WORD_CARDS,
                 onThemesClick = onThemesClick,
                 onStudentsClick = onStudentsClick,
-                onWordCardsClick = onWordCardsClick
+                onWordCardsClick = onWordCardsClick,
+                onRoomsClick = onRoomsClick
             )
         }
 
