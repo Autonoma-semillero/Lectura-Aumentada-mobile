@@ -23,6 +23,7 @@ object AppDestinations {
     const val TEACHER_COMPLETED_CARDS_ROUTE = "teacher_completed_cards/{studentId}/{categoryId}/{categoryName}/{phase2Ready}"
     const val START_ROUTE = LOGIN_ROUTE
     const val PRACTICE_ROUTE = "webar_practice"
+    const val MASCOT_PLAYGROUND_ROUTE = "mascot_playground"
 
     fun domanSessionRoute(categoryId: String, categoryName: String): String {
         return "doman_session/$categoryId/${android.net.Uri.encode(categoryName)}"

@@ -26,7 +26,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import co.edu.uniautonoma.inclusivereadingar.appContainer
+import co.edu.uniautonoma.inclusivereadingar.BuildConfig
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
+import co.edu.uniautonoma.inclusivereadingar.presentation.mascot.MascotPlaygroundRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.DomanSessionRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.screens.WebArRoute
 import co.edu.uniautonoma.inclusivereadingar.presentation.student.SessionSummaryScreen
@@ -96,6 +98,7 @@ fun AppNavHost() {
         return
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = AppDestinations.START_ROUTE) {
         composable(route = AppDestinations.LOGIN_ROUTE) {
             StudentLoginRoute(
@@ -133,6 +136,10 @@ fun AppNavHost() {
 
         composable(route = AppDestinations.PRACTICE_ROUTE) {
             WebArRoute(onBackClick = navController::popBackStack)
+        }
+
+        composable(route = AppDestinations.MASCOT_PLAYGROUND_ROUTE) {
+            MascotPlaygroundRoute(onBackClick = navController::popBackStack)
         }
 
         composable(route = AppDestinations.TEACHER_THEMES_ROUTE) {
@@ -386,6 +393,16 @@ fun AppNavHost() {
                 onFinish = navController::navigateToStudentToday
             )
         }
+    }
+    // Debug-only shortcut to the mascot playground; never shown in release builds.
+    if (BuildConfig.DEBUG && currentRoute == AppDestinations.STUDENT_TODAY_ROUTE) {
+        TextButton(
+            onClick = { navController.navigate(AppDestinations.MASCOT_PLAYGROUND_ROUTE) { launchSingleTop = true } },
+            modifier = Modifier.align(Alignment.BottomStart)
+        ) {
+            Text("Mascota (debug)")
+        }
+    }
     }
     if (showLogoutDialog) {
         AlertDialog(

@@ -15,6 +15,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.viewmodel.compose.viewModel
+import co.edu.uniautonoma.inclusivereadingar.presentation.mascot.MascotCue
+import co.edu.uniautonoma.inclusivereadingar.presentation.mascot.MascotViewModel
+import co.edu.uniautonoma.inclusivereadingar.presentation.mascot.MascotaRive
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,12 +29,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun SessionSummaryScreen(categoryName: String, cardsCount: Int, onFinish: () -> Unit) {
+fun SessionSummaryScreen(
+    categoryName: String,
+    cardsCount: Int,
+    onFinish: () -> Unit,
+    mascotViewModel: MascotViewModel = viewModel()
+) {
+    // Lesson completed: the mascot celebrates as soon as the summary appears.
+    LaunchedEffect(Unit) { mascotViewModel.onCue(MascotCue.LessonCompleted) }
+
     Column(
         modifier = Modifier.fillMaxSize().background(Color(0xFFFFF8F7)).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        MascotaRive(
+            controller = mascotViewModel.controller,
+            modifier = Modifier.fillMaxWidth().height(220.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
         Surface(
             shape = RoundedCornerShape(32.dp),
             color = Color.White,
