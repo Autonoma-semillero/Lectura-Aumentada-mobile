@@ -56,13 +56,13 @@ export class FloatSceneController {
     );
 
     const camera = document.createElement("a-entity");
+    camera.setAttribute("id", "float-camera");
     camera.setAttribute("camera", "");
-    camera.setAttribute("look-controls", "");
 
     const cardRoot = document.createElement("a-entity");
     cardRoot.setAttribute("id", "floating-card-root");
     cardRoot.setAttribute("position", "0 0 -2");
-    camera.appendChild(cardRoot);
+    scene.appendChild(cardRoot);
 
     scene.appendChild(camera);
     this.root.appendChild(scene);
@@ -72,6 +72,13 @@ export class FloatSceneController {
     this.cardRoot = cardRoot;
     this.onCameraReady?.();
     return cardRoot;
+  }
+
+  // `android.webkit.WebView` never dispatches `deviceorientation`, so the camera's
+  // physical rotation is pushed in from native code (see `DeviceOrientationTracker`
+  // on the Kotlin side) via this method instead of a browser event listener.
+  setCameraQuaternion(x, y, z, w) {
+    this.camera?.object3D?.quaternion.set(x, y, z, w);
   }
 
   stop() {

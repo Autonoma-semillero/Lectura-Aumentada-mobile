@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { FloatingCardController, drawCardBackground } from "../src/js/floating-card-controller.js";
+import {
+  FloatingCardController,
+  drawRoundedFill,
+  drawCardFront,
+  drawCardWord,
+  sanitizeWord,
+} from "../src/js/floating-card-controller.js";
 
 function createFakeElement(tagName) {
   return {
@@ -27,13 +33,11 @@ function createFakeElement(tagName) {
         restore() {},
         fill() {},
         stroke() {},
+        fillText() {},
         beginPath() {},
         moveTo() {},
         arcTo() {},
         closePath() {},
-        createRadialGradient() {
-          return { addColorStop() {} };
-        },
       };
     },
   };
@@ -53,21 +57,40 @@ function withFakeDom(run) {
   }
 }
 
-test("mounts a canvas-backed plane as a child of the camera-relative card root", () => {
-  withFakeDom(({ body }) => {
+test("mount nests a billboarded facing entity (and a wobble entity inside it) as the card root's only child", () => {
+  withFakeDom(() => {
     const cardRoot = createFakeElement("a-entity");
     const controller = new FloatingCardController({ cardRoot });
 
-    const plane = controller.mount();
+    controller.mount();
 
-    assert.equal(plane.tagName, "a-plane");
-    assert.equal(cardRoot.children[0], plane);
-    assert.equal(body.children[0].tagName, "canvas");
-    assert.match(plane.attributes.get("material"), /src: #floating-card-canvas/);
+    assert.equal(cardRoot.children.length, 1);
+    const facing = cardRoot.children[0];
+    assert.equal(facing.attributes.get("look-at"), "#float-camera");
+    assert.equal(facing.children.length, 1);
+    const wobble = facing.children[0];
+    assert.match(wobble.attributes.get("animation__rotx"), /property: rotation\.x/);
+    assert.match(wobble.attributes.get("animation__posy"), /property: position\.y/);
   });
 });
 
-test("mounting twice reuses the same plane instead of duplicating it", () => {
+test("mount builds five depth-layer planes plus the front face, all inside the wobble entity", () => {
+  withFakeDom(() => {
+    const cardRoot = createFakeElement("a-entity");
+    const controller = new FloatingCardController({ cardRoot });
+
+    const frontPlane = controller.mount();
+
+    const wobble = cardRoot.children[0].children[0];
+    // 5 depth layers + the front face.
+    assert.equal(wobble.children.length, 6);
+    assert.equal(wobble.children.at(-1), frontPlane);
+    assert.equal(frontPlane.tagName, "a-plane");
+    assert.match(frontPlane.attributes.get("material"), /src: #floating-card-canvas/);
+  });
+});
+
+test("mounting twice reuses the same front plane instead of duplicating the whole card", () => {
   withFakeDom(() => {
     const cardRoot = createFakeElement("a-entity");
     const controller = new FloatingCardController({ cardRoot });
@@ -80,11 +103,12 @@ test("mounting twice reuses the same plane instead of duplicating it", () => {
   });
 });
 
-test("unmount removes both the plane and its backing canvas", () => {
+test("unmount removes the facing entity and every backing canvas", () => {
   withFakeDom(({ body }) => {
     const cardRoot = createFakeElement("a-entity");
     const controller = new FloatingCardController({ cardRoot });
     controller.mount();
+    assert.ok(body.children.length > 0);
 
     controller.unmount();
 
@@ -93,7 +117,51 @@ test("unmount removes both the plane and its backing canvas", () => {
   });
 });
 
-test("draws a rounded, shadowed card background without throwing", () => {
+test("mounts with an initial word drawn onto the front canvas", () => {
+  withFakeDom(() => {
+    const cardRoot = createFakeElement("a-entity");
+    const controller = new FloatingCardController({ cardRoot });
+
+    controller.mount("gato");
+
+    assert.equal(controller.word, "gato");
+  });
+});
+
+test("setWord redraws the front canvas and flags its texture for an update", () => {
+  withFakeDom(() => {
+    const cardRoot = createFakeElement("a-entity");
+    const controller = new FloatingCardController({ cardRoot });
+    controller.mount();
+
+    const map = { needsUpdate: false };
+    controller.plane.getObject3D = () => ({ material: { map } });
+
+    controller.setWord("perro");
+
+    assert.equal(controller.word, "perro");
+    assert.equal(map.needsUpdate, true);
+  });
+});
+
+test("draws a rounded fill without throwing", () => {
   const canvas = { width: 100, height: 60, getContext: createFakeElement("canvas").getContext };
-  assert.doesNotThrow(() => drawCardBackground(canvas));
+  assert.doesNotThrow(() => drawRoundedFill(canvas, "#D9D2C0"));
+});
+
+test("draws the card front (shadow + border) without throwing", () => {
+  const canvas = { width: 100, height: 60, getContext: createFakeElement("canvas").getContext };
+  assert.doesNotThrow(() => drawCardFront(canvas));
+});
+
+test("draws the word without throwing and skips an empty word", () => {
+  const canvas = { width: 100, height: 60, getContext: createFakeElement("canvas").getContext };
+  assert.doesNotThrow(() => drawCardWord(canvas, "hola"));
+  assert.doesNotThrow(() => drawCardWord(canvas, ""));
+});
+
+test("sanitizeWord trims and caps word length", () => {
+  assert.equal(sanitizeWord("  hola  "), "hola");
+  assert.equal(sanitizeWord(42), "");
+  assert.equal(sanitizeWord("a".repeat(60)).length, 48);
 });
