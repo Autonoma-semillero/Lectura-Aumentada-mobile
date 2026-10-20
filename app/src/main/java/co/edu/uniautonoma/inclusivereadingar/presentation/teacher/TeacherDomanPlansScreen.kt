@@ -73,7 +73,8 @@ fun TeacherDomanPlansRoute(
     onBack: () -> Unit,
     onStudentsClick: () -> Unit,
     onThemesClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -101,7 +102,8 @@ fun TeacherDomanPlansRoute(
         onDismissError = viewModel::dismissError,
         onStudentsClick = onStudentsClick,
         onThemesClick = onThemesClick,
-        onWordCardsClick = onWordCardsClick
+        onWordCardsClick = onWordCardsClick,
+        onRoomsClick = onRoomsClick
     )
 }
 
@@ -120,7 +122,8 @@ fun TeacherDomanPlansScreen(
     onDismissError: () -> Unit,
     onStudentsClick: () -> Unit,
     onThemesClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -227,7 +230,8 @@ fun TeacherDomanPlansScreen(
                 activeTab = TeacherTab.STUDENTS,
                 onThemesClick = onThemesClick,
                 onStudentsClick = onStudentsClick,
-                onWordCardsClick = onWordCardsClick
+                onWordCardsClick = onWordCardsClick,
+                onRoomsClick = onRoomsClick
             )
         }
 

@@ -16,6 +16,7 @@ interface LiveDomanApi {
     suspend fun createRepertoire(name: String, categoryId: String, cardIds: List<String>, accessToken: String?): LiveDomanRepertoire
     suspend fun createSession(groupId: String, repertoireId: String, accessToken: String?): LiveDomanSession
     suspend fun getCurrent(accessToken: String?): List<LiveDomanSession>
+    suspend fun listSessions(accessToken: String?): List<LiveDomanSession>
     suspend fun getSession(sessionId: String, accessToken: String?): LiveDomanSessionDetail
     suspend fun join(sessionId: String, accessToken: String?): LiveDomanSession
     suspend fun heartbeat(sessionId: String, accessToken: String?)
@@ -72,6 +73,16 @@ class HttpLiveDomanApi(private val httpClient: BackendHttpClient) : LiveDomanApi
             JSONObject(raw).optJSONArray("sessions") ?: JSONArray()
         }
         return buildList { for (index in 0 until array.length()) add(parseSession(array.getJSONObject(index))) }
+    }
+
+    override suspend fun listSessions(accessToken: String?): List<LiveDomanSession> {
+        val raw = httpClient.get("/doman/live-sessions", accessToken = accessToken)
+        val array = if (raw.trimStart().startsWith("[")) {
+            JSONArray(raw)
+        } else {
+            JSONObject(raw).optJSONArray("sessions") ?: JSONArray()
+        }
+        return buildList { for (index in 0 until array.length()) add(parseLiveSession(array.getJSONObject(index))) }
     }
 
     override suspend fun getSession(sessionId: String, accessToken: String?): LiveDomanSessionDetail {

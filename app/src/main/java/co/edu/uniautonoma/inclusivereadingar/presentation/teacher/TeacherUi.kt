@@ -31,7 +31,8 @@ import androidx.compose.ui.unit.dp
 enum class TeacherTab {
     THEMES,
     STUDENTS,
-    WORD_CARDS
+    WORD_CARDS,
+    ROOMS
 }
 
 @Composable
@@ -39,7 +40,8 @@ fun TeacherBottomBar(
     activeTab: TeacherTab,
     onThemesClick: () -> Unit,
     onStudentsClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier
@@ -68,6 +70,11 @@ fun TeacherBottomBar(
                 label = "Tarjetas",
                 selected = activeTab == TeacherTab.WORD_CARDS,
                 onClick = onWordCardsClick
+            )
+            TeacherBottomBarItem(
+                label = "Salas",
+                selected = activeTab == TeacherTab.ROOMS,
+                onClick = onRoomsClick
             )
         }
     }

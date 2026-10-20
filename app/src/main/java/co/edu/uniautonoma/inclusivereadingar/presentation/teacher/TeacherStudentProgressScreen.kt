@@ -58,6 +58,7 @@ fun TeacherStudentProgressRoute(
     onStudentsClick: () -> Unit,
     onThemesClick: () -> Unit,
     onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit,
     onCompletedCardsClick: (studentId: String, categoryId: String, categoryName: String, phase2Ready: Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -76,6 +77,7 @@ fun TeacherStudentProgressRoute(
         onStudentsClick = onStudentsClick,
         onThemesClick = onThemesClick,
         onWordCardsClick = onWordCardsClick,
+        onRoomsClick = onRoomsClick,
         onRetry = { viewModel.load(studentId) },
         onCompletedCardsClick = { cat ->
             onCompletedCardsClick(studentId, cat.categoryId, cat.categoryName, cat.phase2Ready)
@@ -91,6 +93,7 @@ fun TeacherStudentProgressScreen(
     onStudentsClick: () -> Unit,
     onThemesClick: () -> Unit,
     onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit,
     onRetry: () -> Unit,
     onCompletedCardsClick: (StudentCategoryProgress) -> Unit
 ) {
@@ -183,7 +186,8 @@ fun TeacherStudentProgressScreen(
             activeTab = TeacherTab.STUDENTS,
             onThemesClick = onThemesClick,
             onStudentsClick = onStudentsClick,
-            onWordCardsClick = onWordCardsClick
+            onWordCardsClick = onWordCardsClick,
+            onRoomsClick = onRoomsClick
         )
     }
 }

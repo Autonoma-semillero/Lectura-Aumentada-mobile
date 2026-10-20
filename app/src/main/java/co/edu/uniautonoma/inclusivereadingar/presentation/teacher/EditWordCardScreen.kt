@@ -76,7 +76,8 @@ fun EditWordCardRoute(
     onBack: () -> Unit,
     onThemesClick: () -> Unit,
     onStudentsClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val container = context.appContainer()
@@ -109,7 +110,8 @@ fun EditWordCardRoute(
         onSaveClick = viewModel::save,
         onThemesClick = onThemesClick,
         onStudentsClick = onStudentsClick,
-        onWordCardsClick = onWordCardsClick
+        onWordCardsClick = onWordCardsClick,
+        onRoomsClick = onRoomsClick
     )
 }
 
@@ -128,7 +130,8 @@ fun EditWordCardScreen(
     onSaveClick: () -> Unit,
     onThemesClick: () -> Unit,
     onStudentsClick: () -> Unit,
-    onWordCardsClick: () -> Unit
+    onWordCardsClick: () -> Unit,
+    onRoomsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val primary = Color(0xFFE53734)
@@ -459,7 +462,8 @@ fun EditWordCardScreen(
             activeTab = TeacherTab.WORD_CARDS,
             onThemesClick = onThemesClick,
             onStudentsClick = onStudentsClick,
-            onWordCardsClick = onWordCardsClick
+            onWordCardsClick = onWordCardsClick,
+            onRoomsClick = onRoomsClick
         )
     }
 }

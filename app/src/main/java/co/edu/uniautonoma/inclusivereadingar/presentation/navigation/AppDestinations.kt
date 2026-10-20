@@ -9,6 +9,7 @@ object AppDestinations {
     const val SESSION_SUMMARY_ROUTE = "session_summary/{categoryName}/{cardsCount}"
     const val TEACHER_THEMES_ROUTE = "teacher_themes"
     const val TEACHER_LIVE_SESSION_ROUTE = "teacher_live_session"
+    const val TEACHER_ROOMS_ROUTE = "teacher_rooms"
     const val TEACHER_STUDENTS_ROUTE = "teacher_students"
     const val TEACHER_GROUPS_ROUTE = "teacher_groups"
     const val TEACHER_PLAN_ASSIGNMENT_ROUTE =
