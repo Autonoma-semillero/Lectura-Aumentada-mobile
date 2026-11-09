@@ -1,7 +1,10 @@
 package co.edu.uniautonoma.inclusivereadingar.presentation.webar
 
 import android.view.ViewGroup
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -57,6 +60,15 @@ fun VrStereoContainer(
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val leftPreviewView = remember { createPreviewView(context) }
     val rightPreviewView = remember { createPreviewView(context) }
+
+    DisposableEffect(context) {
+        val activity = context.findActivity()
+        val previousOrientation = activity?.requestedOrientation
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        onDispose {
+            if (previousOrientation != null) activity.requestedOrientation = previousOrientation
+        }
+    }
     val headPose = rememberVrHeadPose()
 
     DisposableEffect(lifecycleOwner, cameraProviderFuture) {
@@ -107,8 +119,8 @@ private fun VrStereoCard(text: String, headPose: Offset, eyeOffset: Float, modif
         label = "vr-card-y",
     ).value
     val rotation = transition.animateFloat(
-        initialValue = -1.5f,
-        targetValue = 1.5f,
+        initialValue = -16f,
+        targetValue = -9f,
         animationSpec = infiniteRepeatable(tween(2400), RepeatMode.Reverse),
         label = "vr-card-rotation",
     ).value
@@ -116,28 +128,35 @@ private fun VrStereoCard(text: String, headPose: Offset, eyeOffset: Float, modif
     Box(
         modifier = modifier
             .offset(x = (headPose.x + eyeOffset).dp, y = headPose.y.dp)
-            .graphicsLayer { translationY = floatY; rotationY = rotation + eyeOffset * 0.25f }
-            .size(width = 150.dp, height = 96.dp),
+            .graphicsLayer {
+                translationY = floatY
+                rotationX = 12f
+                rotationY = rotation + eyeOffset * 0.18f
+                rotationZ = -1.5f
+                cameraDistance = 14f * density
+            }
+            .size(width = 160.dp, height = 107.dp),
     ) {
-        repeat(5) { depth ->
+        val depthColors = listOf(0xFFD9D2C0, 0xFFDDD6C5, 0xFFE3DDCD, 0xFFE9E4D6, 0xFFF0ECE0)
+        depthColors.forEachIndexed { depth, color ->
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .offset(x = (10 - depth * 2).dp, y = (12 - depth * 2).dp)
-                    .background(Color(0xFF173C2A).copy(alpha = 0.72f), shape),
+                    .offset(x = (9 - depth * 1.6f).dp, y = (10 - depth * 1.6f).dp)
+                    .background(Color(color), shape),
             )
         }
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .shadow(16.dp, shape)
-                .background(Color(0xD9FFFFFF), shape),
+                .background(Color.White, shape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = text.uppercase(),
-                color = Color(0xFF18352A),
-                fontSize = 25.sp,
+                color = Color(0xFFC62828),
+                fontSize = 27.sp,
                 lineHeight = 30.sp,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center,
@@ -185,4 +204,10 @@ private fun angleDelta(value: Float, origin: Float): Float {
     while (delta > Math.PI) delta -= (Math.PI * 2).toFloat()
     while (delta < -Math.PI) delta += (Math.PI * 2).toFloat()
     return delta
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
