@@ -2,70 +2,68 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { VrSceneController } from "../src/js/vr-scene-controller.js";
 
-function element(tagName) {
+function element(tagName, renderer) {
+  const cameraObject = {};
   return {
-    tagName,
-    children: [],
-    attributes: new Map(),
+    tagName, children: [], attributes: new Map(), renderer: tagName === "a-scene" ? renderer : undefined,
+    canvas: tagName === "a-scene" ? { style: {} } : undefined,
+    clientWidth: 200, clientHeight: 100,
+    object3D: { quaternion: { set(x, y, z, w) { Object.assign(this, { x, y, z, w }); } }, add(child) { child.parent = this; }, remove() {} },
     setAttribute(name, value) { this.attributes.set(name, value); },
-    listeners: new Map(),
-    addEventListener(name, listener) { this.listeners.set(name, listener); },
+    addEventListener() {},
     appendChild(child) { this.children.push(child); child.parentElement = this; return child; },
-    remove() { this.parentElement = null; },
-    async play() {},
-    pause() {},
+    getObject3D(name) { return name === "camera" ? cameraObject : null; },
+    getContext() { return { drawImage() {} }; },
+    remove() { this.parentElement = null; }, async play() {}, pause() {},
   };
 }
 
-test("stereo view creates two synchronized eyes from one camera stream", async () => {
+test("stereo view uses one stream, scene, renderer and card root", async () => {
   const previousDocument = globalThis.document;
   const previousWindow = globalThis.window;
   const previousNavigator = globalThis.navigator;
+  const previousRequestAnimationFrame = globalThis.requestAnimationFrame;
+  const previousCancelAnimationFrame = globalThis.cancelAnimationFrame;
   const track = { stopped: false, stop() { this.stopped = true; } };
   let cameraRequests = 0;
-  globalThis.document = {
-    createElement: (tagName) => tagName === "canvas"
-      ? { getContext: (kind) => kind === "webgl" ? {} : null }
-      : element(tagName),
+  const renderer = {
+    render() {}, setScissorTest() {}, setViewport() {}, setScissor() {}, clear() {}, setClearColor() {},
+    getSize(target) { target.x = 200; target.y = 100; return target; },
   };
-  globalThis.window = { AFRAME: {} };
-  Object.defineProperty(globalThis, "navigator", {
-    configurable: true,
-    value: { mediaDevices: { getUserMedia: async () => { cameraRequests += 1; return { getTracks: () => [track] }; } } },
-  });
+  class StereoCamera { constructor() { this.cameraL = { layers: { enable() {} } }; this.cameraR = { layers: { enable() {} } }; } update() {} }
+  class Vector2 {}
+  class Quaternion {
+    constructor(x = 0, y = 0, z = 0, w = 1) { Object.assign(this, { x, y, z, w }); }
+    normalize() { return this; } clone() { return new Quaternion(this.x, this.y, this.z, this.w); }
+    invert() { this.x *= -1; this.y *= -1; this.z *= -1; return this; }
+    multiply() { return this; }
+  }
+  globalThis.document = { createElement: (tag) => tag === "canvas" ? { ...element(tag, renderer), getContext: () => ({ drawImage() {} }) } : element(tag, renderer) };
+  globalThis.window = { location: { search: "" }, AFRAME: { THREE: { StereoCamera, Vector2, Quaternion } } };
+  globalThis.requestAnimationFrame = () => 1;
+  globalThis.cancelAnimationFrame = () => {};
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { mediaDevices: { getUserMedia: async () => { cameraRequests += 1; return { getTracks: () => [track] }; } } } });
 
   try {
-    const root = element("div");
+    const root = element("div", renderer);
     const controller = new VrSceneController({ root });
-    const cardRoots = await controller.start();
-
+    const cardRoot = await controller.start();
     assert.equal(cameraRequests, 1);
-    assert.equal(root.children.length, 2);
-    assert.equal(cardRoots.length, 2);
-    assert.equal(controller.eyes[0].camera.attributes.get("position"), "-0.032 0 0");
-    assert.equal(controller.eyes[1].camera.attributes.get("position"), "0.032 0 0");
-
-    const clearCalls = [];
-    const firstScene = controller.eyes[0].scene;
-    firstScene.object3D = { background: "opaque" };
-    firstScene.canvas = { style: {} };
-    firstScene.renderer = { setClearColor(color, alpha) { clearCalls.push([color, alpha]); } };
-    firstScene.listeners.get("renderstart")();
-    assert.deepEqual(clearCalls, [[0x000000, 0]]);
-    assert.equal(firstScene.object3D.background, null);
-    assert.equal(firstScene.canvas.style.backgroundColor, "transparent");
-
-    for (const eye of controller.eyes) eye.camera.object3D = { quaternion: { set(x, y, z, w) { Object.assign(this, { x, y, z, w }); } } };
+    assert.equal(root.children.length, 3);
+    assert.ok(controller.video);
+    assert.ok(controller.cameraCanvas);
+    assert.equal(cardRoot.attributes.get("id"), "vr-card-root");
+    assert.equal(controller.scene.renderer, renderer);
+    controller.camera.object3D.quaternion.copy = function (value) { Object.assign(this, value); };
     controller.setCameraQuaternion(0.1, 0.2, 0.3, 0.9);
-    assert.equal(controller.eyes[0].camera.object3D.quaternion.w, 0.9);
-    assert.equal(controller.eyes[1].camera.object3D.quaternion.w, 0.9);
-
+    assert.ok(controller.initialOrientation);
     controller.stop();
     assert.equal(track.stopped, true);
-    assert.equal(controller.eyes.length, 0);
   } finally {
     globalThis.document = previousDocument;
     globalThis.window = previousWindow;
+    globalThis.requestAnimationFrame = previousRequestAnimationFrame;
+    globalThis.cancelAnimationFrame = previousCancelAnimationFrame;
     Object.defineProperty(globalThis, "navigator", { configurable: true, value: previousNavigator });
   }
 });

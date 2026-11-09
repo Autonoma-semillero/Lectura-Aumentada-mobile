@@ -192,18 +192,16 @@ body,
 .vr-document body,
 .vr-document #experience,
 #vr-root,
-#vr-chrome { background: #05070b; }
+#vr-chrome { background: transparent; }
 
 #vr-root,
 #vr-chrome { position: fixed; inset: 0; }
-#vr-root { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
-.vr-eye { position: relative; min-width: 0; overflow: hidden; background: #05070b; }
-.vr-eye > video,
-.vr-eye > a-scene { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; }
-.vr-eye > video { z-index: 0; display: block !important; background: #05070b; }
-.vr-eye > a-scene { z-index: 1; background: transparent !important; }
-.vr-eye > a-scene canvas,
-.vr-eye > a-scene .a-canvas { background: transparent !important; background-color: transparent !important; }
+#vr-root { overflow: hidden; }
+#vr-root > a-scene { position: absolute !important; inset: 0; z-index: 1; width: 100% !important; height: 100% !important; }
+#vr-root canvas,
+#vr-root .a-canvas { background: transparent !important; background-color: transparent !important; }
+.vr-source-video { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.vr-camera-canvas { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
 #vr-chrome { z-index: 10; pointer-events: none; }
 .vr-center-divider { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-1px); background: rgba(0, 0, 0, 0.9); }
 .vr-lens { position: absolute; top: 0; bottom: 0; width: 50%; box-shadow: inset 0 0 9vw rgba(0, 0, 0, 0.72); }

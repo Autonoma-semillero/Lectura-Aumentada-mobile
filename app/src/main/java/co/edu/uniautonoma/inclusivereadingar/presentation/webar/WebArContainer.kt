@@ -146,7 +146,6 @@ fun WebArContainer(
             WebView(context).apply {
                 webViewRef = this
                 WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = false
                 settings.mediaPlaybackRequiresUserGesture = false

@@ -4,7 +4,7 @@ import { probeXrCapabilities } from "./xr-capabilities.js";
 import { VrSceneController } from "./vr-scene-controller.js";
 
 let pendingWord = "ejemplo";
-let cardControllers = [];
+let cardController = null;
 const elements = {
   root: document.querySelector("#vr-root"), chrome: document.querySelector("#vr-chrome"),
   activation: document.querySelector("#activation"), loading: document.querySelector("#loading"),
@@ -32,13 +32,9 @@ async function activateCamera() {
   try {
     const capabilities = await probeXrCapabilities();
     if (!capabilities.camera) throw new Error("Este dispositivo no ofrece una cámara compatible.");
-    const roots = await sceneController.start();
-    cardControllers = roots.map((cardRoot, index) => {
-      const side = index === 0 ? "left" : "right";
-      const controller = new FloatingCardController({ cardRoot, idPrefix: `vr-card-${side}`, cameraSelector: `#vr-camera-${side}` });
-      controller.mount(pendingWord);
-      return controller;
-    });
+    const cardRoot = await sceneController.start();
+    cardController = new FloatingCardController({ cardRoot, idPrefix: "vr-card", cameraSelector: "#vr-camera" });
+    cardController.mount(pendingWord);
   } catch (error) {
     showCameraError(error instanceof Error ? error.message : "No fue posible iniciar el modo VR");
   } finally {
@@ -47,7 +43,7 @@ async function activateCamera() {
   }
 }
 
-function setCardWord(word) { pendingWord = word; for (const controller of cardControllers) controller.setWord(word); }
+function setCardWord(word) { pendingWord = word; cardController?.setWord(word); }
 function receiveNativeMessage(rawMessage) {
   try {
     const message = parseNativeMessage(rawMessage);
@@ -58,8 +54,8 @@ function receiveNativeMessage(rawMessage) {
 function showCameraError(message) { stop(); if (elements.errorMessage) elements.errorMessage.textContent = message; showOnly(elements.errorCard); reportRuntimeError(message); }
 function reportRuntimeError(message) { try { bridge.send("runtime-error", { message }); } catch { /* Host already closing. */ } }
 function stop({ showActivation = false } = {}) {
-  for (const controller of cardControllers) controller.unmount();
-  cardControllers = [];
+  cardController?.unmount();
+  cardController = null;
   sceneController.stop();
   elements.chrome?.classList.add("hidden");
   if (showActivation) showOnly(elements.activation);
