@@ -45,6 +45,15 @@ export class VrSceneController {
     scene.setAttribute("vr-mode-ui", "enabled: false");
     scene.setAttribute("device-orientation-permission-ui", "enabled: false");
     scene.setAttribute("renderer", "antialias: true; alpha: true; colorManagement: true; precision: medium;");
+    const makeRendererTransparent = () => {
+      if (scene.object3D) scene.object3D.background = null;
+      scene.renderer?.setClearColor?.(0x000000, 0);
+      if (scene.canvas) {
+        scene.canvas.style.background = "transparent";
+        scene.canvas.style.backgroundColor = "transparent";
+      }
+    };
+    scene.addEventListener("renderstart", makeRendererTransparent);
     const camera = document.createElement("a-entity");
     camera.setAttribute("id", `vr-camera-${side}`);
     camera.setAttribute("camera", "");
@@ -57,7 +66,8 @@ export class VrSceneController {
     eye.appendChild(scene);
     this.root.appendChild(eye);
     await video.play();
-    return { side, eye, video, scene, camera, cardRoot };
+    makeRendererTransparent();
+    return { side, eye, video, scene, camera, cardRoot, makeRendererTransparent };
   }
 
   setCameraQuaternion(x, y, z, w) {

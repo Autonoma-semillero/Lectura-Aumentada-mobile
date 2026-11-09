@@ -200,8 +200,10 @@ body,
 .vr-eye { position: relative; min-width: 0; overflow: hidden; background: #05070b; }
 .vr-eye > video,
 .vr-eye > a-scene { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; }
-.vr-eye > video { z-index: 0; }
-.vr-eye > a-scene { z-index: 1; }
+.vr-eye > video { z-index: 0; display: block !important; background: #05070b; }
+.vr-eye > a-scene { z-index: 1; background: transparent !important; }
+.vr-eye > a-scene canvas,
+.vr-eye > a-scene .a-canvas { background: transparent !important; background-color: transparent !important; }
 #vr-chrome { z-index: 10; pointer-events: none; }
 .vr-center-divider { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-1px); background: rgba(0, 0, 0, 0.9); }
 .vr-lens { position: absolute; top: 0; bottom: 0; width: 50%; box-shadow: inset 0 0 9vw rgba(0, 0, 0, 0.72); }
