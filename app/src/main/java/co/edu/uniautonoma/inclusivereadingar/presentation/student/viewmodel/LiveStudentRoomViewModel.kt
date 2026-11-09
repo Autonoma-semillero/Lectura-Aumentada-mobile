@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class LiveStudentRoomUiState(
     val isLoading: Boolean = true,
@@ -24,7 +26,8 @@ data class LiveStudentRoomUiState(
 
 /** Student rendering is deliberately passive: it only reflects teacher/server state. */
 class LiveStudentRoomViewModel(
-    private val liveDoman: LiveDomanDataSource
+    private val liveDoman: LiveDomanDataSource,
+    private val startBackgroundSync: Boolean = true,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(LiveStudentRoomUiState())
     val uiState: StateFlow<LiveStudentRoomUiState> = _uiState.asStateFlow()
@@ -36,30 +39,39 @@ class LiveStudentRoomViewModel(
     private var feedWasConnected = false
     private var heartbeatJob: Job? = null
     private var fallbackSyncJob: Job? = null
+    private val refreshMutex = Mutex()
+    @Volatile private var roomRealtimeConnected = false
+    @Volatile private var feedRealtimeConnected = false
 
     init {
         refresh()
-        startFallbackSync()
+        if (startBackgroundSync) startFallbackSync()
     }
 
     fun refresh(): Job = viewModelScope.launch {
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-        runCatching {
-            if (feedSubscription == null) subscribeToFeed()
-            val sessions = liveDoman.getCurrent()
-            val selected = sessions.firstOrNull { it.id == roomSessionId }
-                ?: sessions.firstOrNull { it.status == "running" || it.status == "paused" }
-                ?: sessions.firstOrNull()
-            selected?.let { liveDoman.join(it.id) }
-        }.onSuccess { session ->
-            _uiState.update { state -> state.copy(isLoading = false, session = session, errorMessage = null) }
-            if (session != null) {
-                subscribe(session.id)
-                startHeartbeat(session.id)
-                acknowledgeIfShowing(session)
+        // Room-open events, Ably reconnects and the initial load can all request a refresh
+        // concurrently. Keep them ordered so an older empty response cannot overwrite a room
+        // that a newer request has already joined.
+        refreshMutex.withLock {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            runCatching {
+                if (feedSubscription == null) subscribeToFeed()
+                val sessions = liveDoman.getCurrent()
+                val joinable = sessions.filter { it.status == "lobby" || it.status == "running" || it.status == "paused" }
+                val selected = joinable.firstOrNull { it.id == roomSessionId }
+                    ?: joinable.firstOrNull { it.status == "running" || it.status == "paused" }
+                    ?: joinable.firstOrNull()
+                selected?.let { liveDoman.join(it.id) }
+            }.onSuccess { session ->
+                _uiState.update { state -> state.copy(isLoading = false, session = session, errorMessage = null) }
+                if (session != null) {
+                    subscribe(session.id)
+                    startHeartbeat(session.id)
+                    acknowledgeIfShowing(session)
+                }
+            }.onFailure { error ->
+                _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: "No pudimos consultar la clase.") }
             }
-        }.onFailure { error ->
-            _uiState.update { it.copy(isLoading = false, errorMessage = error.message ?: "No pudimos consultar la clase.") }
         }
     }
 
@@ -77,7 +89,8 @@ class LiveStudentRoomViewModel(
                     audience = "student",
                     onSession = ::applyRealtimeSession,
                     onConnection = { connected ->
-                        _uiState.update { state -> state.copy(isRealtimeConnected = connected) }
+                        roomRealtimeConnected = connected
+                        updateRealtimeConnectionState()
                         // A read after every successful (re)connection closes the gap between
                         // the last REST response and the Ably subscription becoming active.
                         if (connected) refresh()
@@ -98,12 +111,19 @@ class LiveStudentRoomViewModel(
             liveDoman.subscribeStudentFeed(
                 onRoomOpened = ::joinOpenedRoom,
                 onConnection = { connected ->
-                    _uiState.update { it.copy(isRealtimeConnected = connected) }
+                    feedRealtimeConnected = connected
+                    updateRealtimeConnectionState()
                     if (connected && feedWasConnected) refresh()
                     feedWasConnected = connected
                 }
             )
         }.getOrElse { null }
+    }
+
+    private fun updateRealtimeConnectionState() {
+        _uiState.update { state ->
+            state.copy(isRealtimeConnected = roomRealtimeConnected || feedRealtimeConnected)
+        }
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -116,8 +136,19 @@ class LiveStudentRoomViewModel(
     private fun applyRealtimeSession(session: LiveDomanSession) {
         val current = _uiState.value.session
         if (current != null && session.sequence < current.sequence) return
+        if (session.status == "ended" || session.status == "cancelled") {
+            heartbeatJob?.cancel()
+            roomSubscription?.close()
+            roomSubscription = null
+            roomSessionId = null
+            roomRealtimeConnected = false
+            _uiState.update {
+                it.copy(isLoading = false, session = null, errorMessage = null, isLocallyPaused = false)
+            }
+            updateRealtimeConnectionState()
+            return
+        }
         _uiState.update { it.copy(isLoading = false, session = session, errorMessage = null) }
-        if (session.status == "ended" || session.status == "cancelled") heartbeatJob?.cancel()
         acknowledgeIfShowing(session)
     }
 

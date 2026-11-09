@@ -50,6 +50,7 @@ await copyFile(
   resolve(sourceRoot, "index-float.html"),
   resolve(outputRoot, "index-float.html"),
 );
+await copyFile(resolve(sourceRoot, "index-vr.html"), resolve(outputRoot, "index-vr.html"));
 
 console.log(`WebAR assets generated in ${outputRoot}`);
 console.log(`DPDB remoto desactivado en aframe.min.js (${patchedDpdbUrls} URL)`);

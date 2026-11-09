@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob: data: https:; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; media-src 'self' blob: data: https:; connect-src 'self' blob: data: https:; worker-src 'self' blob:; object-src 'none'; frame-src 'none'; base-uri 'none';" />
+    <title>Lectura Aumentada - Visor VR</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./vendor/aframe.min.js"></script>
+  </head>
+  <body class="vr-document">
+    <main id="experience" aria-label="Experiencia de realidad virtual con dos lentes">
+      <div id="vr-root" aria-hidden="true"></div>
+      <div id="vr-chrome" class="hidden" aria-hidden="true">
+        <div class="vr-center-divider"></div>
+        <div class="vr-lens vr-lens--left"></div>
+        <div class="vr-lens vr-lens--right"></div>
+      </div>
+      <section id="activation" class="center-card" aria-labelledby="activation-title">
+        <h1 id="activation-title">Modo visor VR</h1>
+        <p>Gira el celular en horizontal y colócalo en el visor. La cámara se comparte entre ambos lentes y ninguna imagen se envía al servidor.</p>
+        <button id="activate-camera" class="primary-action" type="button">Entrar al modo VR</button>
+        <p id="compatibility" class="detail" aria-live="polite"></p>
+      </section>
+      <section id="loading" class="center-card hidden" aria-live="assertive">
+        <div class="spinner" aria-hidden="true"></div><p>Calibrando los dos lentes…</p>
+      </section>
+      <section id="error-card" class="center-card hidden" role="alert">
+        <h2>No pudimos iniciar el visor</h2><p id="error-message"></p>
+        <button id="retry-camera" class="primary-action" type="button">Reintentar</button>
+      </section>
+    </main>
+    <script type="module" src="./js/app-vr.js"></script>
+  </body>
+</html>

@@ -22,3 +22,9 @@ test("build copies the floating-card document alongside the marker document", as
   const floatDocument = await readFile(resolve(outputRoot, "index-float.html"), "utf8");
   assert.match(floatDocument, /<title>/i);
 });
+
+test("build copies the stereo VR document", async () => {
+  const vrDocument = await readFile(resolve(outputRoot, "index-vr.html"), "utf8");
+  assert.match(vrDocument, /id="vr-root"/);
+  assert.match(vrDocument, /app-vr\.js/);
+});

@@ -27,7 +27,8 @@ data class LiveDomanSession(
     val sequence: Int,
     val displayText: String?,
     val displayAudioUrl: String?,
-    val displayDurationMs: Int
+    val displayDurationMs: Int,
+    val experienceMode: String = "standard"
 )
 
 data class LiveDomanParticipant(

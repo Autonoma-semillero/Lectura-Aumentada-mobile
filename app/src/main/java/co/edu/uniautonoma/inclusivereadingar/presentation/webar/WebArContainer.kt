@@ -65,6 +65,7 @@ private const val ORIENTATION_PUSH_INTERVAL_MS = 50L
 fun WebArContainer(
     modifier: Modifier = Modifier,
     displayText: String? = null,
+    documentUrl: String = WebArConfig.WEB_AR_FLOAT_URL,
     onCameraReady: () -> Unit = {},
     onCameraPermissionDenied: () -> Unit = {},
     onRuntimeError: (String) -> Unit = {}
@@ -276,7 +277,7 @@ fun WebArContainer(
                     )
                 }
 
-                loadUrl(webArDocumentUrl(sessionId, WebArConfig.WEB_AR_FLOAT_URL))
+                loadUrl(webArDocumentUrl(sessionId, documentUrl))
             }
         }
     )

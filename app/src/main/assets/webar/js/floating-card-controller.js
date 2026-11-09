@@ -1,4 +1,3 @@
-const CANVAS_ID = "floating-card-canvas";
 const MAX_WORD_LENGTH = 48;
 const CARD_WIDTH = 1.1;
 const CARD_HEIGHT = 0.7333; // matches the approved mockup's 300x200 card ratio
@@ -71,9 +70,9 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function createFilledPlane(fillStyle, z) {
+function createFilledPlane(fillStyle, z, idPrefix) {
   const canvas = document.createElement("canvas");
-  canvas.id = `floating-card-layer-${Math.round(z * 1000)}`;
+  canvas.id = `${idPrefix}-layer-${Math.round(z * 1000)}`;
   canvas.width = 160;
   canvas.height = 107;
   canvas.style.display = "none";
@@ -95,7 +94,7 @@ function createFilledPlane(fillStyle, z) {
  * is layered on top of, not instead of, that facing behavior.
  */
 export class FloatingCardController {
-  constructor({ cardRoot, width = CARD_WIDTH, height = CARD_HEIGHT }) {
+  constructor({ cardRoot, width = CARD_WIDTH, height = CARD_HEIGHT, idPrefix = "floating-card", cameraSelector = "#float-camera" }) {
     this.cardRoot = cardRoot;
     this.width = width;
     this.height = height;
@@ -105,6 +104,8 @@ export class FloatingCardController {
     this.frontCanvas = null;
     this.frontPlane = null;
     this.word = "";
+    this.idPrefix = idPrefix;
+    this.cameraSelector = cameraSelector;
   }
 
   get plane() {
@@ -115,8 +116,8 @@ export class FloatingCardController {
     if (this.facing) return this.frontPlane;
 
     const facing = document.createElement("a-entity");
-    facing.setAttribute("id", "floating-card-facing");
-    facing.setAttribute("look-at", "#float-camera");
+    facing.setAttribute("id", `${this.idPrefix}-facing`);
+    facing.setAttribute("look-at", this.cameraSelector);
 
     const wobble = document.createElement("a-entity");
     wobble.setAttribute("id", "floating-card-wobble");
@@ -138,13 +139,13 @@ export class FloatingCardController {
     );
 
     for (const layer of DEPTH_LAYERS) {
-      const { plane, canvas } = createFilledPlane(layer.color, layer.z);
+      const { plane, canvas } = createFilledPlane(layer.color, layer.z, this.idPrefix);
       wobble.appendChild(plane);
       this.canvases.push(canvas);
     }
 
     const frontCanvas = document.createElement("canvas");
-    frontCanvas.id = CANVAS_ID;
+    frontCanvas.id = `${this.idPrefix}-canvas`;
     frontCanvas.width = 1024;
     frontCanvas.height = 683;
     frontCanvas.style.display = "none";
@@ -153,11 +154,11 @@ export class FloatingCardController {
     this.canvases.push(frontCanvas);
 
     const frontPlane = document.createElement("a-plane");
-    frontPlane.setAttribute("id", "floating-card");
+    frontPlane.setAttribute("id", this.idPrefix);
     frontPlane.setAttribute("width", String(this.width));
     frontPlane.setAttribute("height", String(this.height));
     frontPlane.setAttribute("position", "0 0 0");
-    frontPlane.setAttribute("material", `src: #${CANVAS_ID}; transparent: true; shader: flat;`);
+    frontPlane.setAttribute("material", `src: #${frontCanvas.id}; transparent: true; shader: flat;`);
     wobble.appendChild(frontPlane);
     this.frontPlane = frontPlane;
 

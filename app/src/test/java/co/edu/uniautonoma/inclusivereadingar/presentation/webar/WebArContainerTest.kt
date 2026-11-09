@@ -38,4 +38,11 @@ class WebArContainerTest {
         assertThat(WebArConfig.WEB_AR_FLOAT_URL).isNotEqualTo(WebArConfig.WEB_AR_URL)
         assertThat(WebArConfig.WEB_AR_FLOAT_URL).startsWith(WebArConfig.TRUSTED_ORIGIN)
     }
+
+    @Test
+    fun vrScreenUsesItsOwnTrustedStereoDocument() {
+        assertThat(WebArConfig.WEB_AR_VR_URL).startsWith(WebArConfig.TRUSTED_ORIGIN)
+        assertThat(WebArConfig.WEB_AR_VR_URL).isNotEqualTo(WebArConfig.WEB_AR_FLOAT_URL)
+        assertThat(WebArConfig.WEB_AR_VR_URL).endsWith("/assets/webar/index-vr.html")
+    }
 }

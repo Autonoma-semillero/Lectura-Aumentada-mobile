@@ -204,6 +204,7 @@ internal fun parseLiveSession(item: JSONObject): LiveDomanSession {
                 ?: item.optString("display_text").ifBlank { null },
             displayAudioUrl = card?.optString("audio_url")?.ifBlank { null },
             displayDurationMs = presentation?.optInt("display_ms", 0)
-                ?: item.optInt("display_duration_ms", item.optInt("display_ms", 0))
+                ?: item.optInt("display_duration_ms", item.optInt("display_ms", 0)),
+            experienceMode = item.optString("experience_mode", "standard").takeIf { it == "vr" } ?: "standard"
         )
 }

@@ -82,7 +82,7 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.theme.OnChildYellow
 import co.edu.uniautonoma.inclusivereadingar.presentation.theme.SecondaryBlue
 import co.edu.uniautonoma.inclusivereadingar.presentation.theme.SuccessGreen
 import co.edu.uniautonoma.inclusivereadingar.presentation.theme.LearningTokens
-import co.edu.uniautonoma.inclusivereadingar.presentation.webar.WebArContainer
+import co.edu.uniautonoma.inclusivereadingar.presentation.webar.VrStereoContainer
 import co.edu.uniautonoma.inclusivereadingar.presentation.webar.shouldMountArWebView
 
 @Composable
@@ -312,13 +312,13 @@ private fun StudentClassRoom(uiState: LiveStudentRoomUiState, onToggleLocalPause
     }
     var arUnavailable by remember { mutableStateOf(false) }
     val showArCamera = shouldMountArWebView(
-        showingCard = showingCard,
+        showingCard = showingCard && session.experienceMode == "vr",
         hasCameraHardware = hasCameraHardware,
         arUnavailable = arUnavailable
     )
 
     if (showArCamera) {
-        FullScreenArCard(
+        FullScreenVrCard(
             session = session,
             isLocallyPaused = uiState.isLocallyPaused,
             onCameraPermissionDenied = { arUnavailable = true },
@@ -357,7 +357,7 @@ private fun StudentClassRoom(uiState: LiveStudentRoomUiState, onToggleLocalPause
  * they stay as small icon-only controls instead of a text-heavy Column wrapped around the camera.
  */
 @Composable
-private fun FullScreenArCard(
+private fun FullScreenVrCard(
     session: LiveDomanSession,
     isLocallyPaused: Boolean,
     onCameraPermissionDenied: () -> Unit,
@@ -366,7 +366,7 @@ private fun FullScreenArCard(
     onBackClick: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        WebArContainer(
+        VrStereoContainer(
             modifier = Modifier.fillMaxSize(),
             displayText = session.displayText,
             onCameraPermissionDenied = onCameraPermissionDenied,

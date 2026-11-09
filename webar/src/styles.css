@@ -1,7 +1,7 @@
 :root {
   color-scheme: dark;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --accent: #ef4444;
+  --accent: #c62828;
   --panel: rgba(12, 18, 28, 0.82);
   --text: #ffffff;
   --muted: #d8e1ee;
@@ -184,6 +184,37 @@ body,
 @media (prefers-reduced-motion: reduce) {
   .spinner {
     animation-duration: 1.8s;
+  }
+}
+
+/* Cardboard-style stereo preview. One MediaStream feeds both synchronized eye views. */
+.vr-document,
+.vr-document body,
+.vr-document #experience,
+#vr-root,
+#vr-chrome { background: #05070b; }
+
+#vr-root,
+#vr-chrome { position: fixed; inset: 0; }
+#vr-root { display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; }
+.vr-eye { position: relative; min-width: 0; overflow: hidden; background: #05070b; }
+.vr-eye > video,
+.vr-eye > a-scene { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; }
+.vr-eye > video { z-index: 0; }
+.vr-eye > a-scene { z-index: 1; }
+#vr-chrome { z-index: 10; pointer-events: none; }
+.vr-center-divider { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-1px); background: rgba(0, 0, 0, 0.9); }
+.vr-lens { position: absolute; top: 0; bottom: 0; width: 50%; box-shadow: inset 0 0 9vw rgba(0, 0, 0, 0.72); }
+.vr-lens--left { left: 0; }
+.vr-lens--right { right: 0; }
+
+@media (orientation: portrait) {
+  #vr-root { opacity: 0.28; }
+  #vr-chrome::after {
+    content: "Gira el celular en horizontal";
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    max-width: 15rem; padding: 1rem 1.25rem; border-radius: 14px;
+    background: #ffffff; color: #26324b; font: 800 1rem/1.35 system-ui, sans-serif; text-align: center;
   }
 }
 
