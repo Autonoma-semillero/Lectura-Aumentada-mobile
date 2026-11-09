@@ -1,6 +1,11 @@
 package co.edu.uniautonoma.inclusivereadingar.presentation.webar
 
 import android.view.ViewGroup
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -20,12 +25,16 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
@@ -48,6 +57,7 @@ fun VrStereoContainer(
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     val leftPreviewView = remember { createPreviewView(context) }
     val rightPreviewView = remember { createPreviewView(context) }
+    val headPose = rememberVrHeadPose()
 
     DisposableEffect(lifecycleOwner, cameraProviderFuture) {
         val listener = Runnable {
@@ -68,8 +78,8 @@ fun VrStereoContainer(
     }
 
     Row(modifier = modifier.background(Color.Black)) {
-        StereoEye(leftPreviewView, displayText, -6f, Modifier.weight(1f).fillMaxSize())
-        StereoEye(rightPreviewView, displayText, 6f, Modifier.weight(1f).fillMaxSize())
+        StereoEye(leftPreviewView, displayText, headPose, -6f, Modifier.weight(1f).fillMaxSize())
+        StereoEye(rightPreviewView, displayText, headPose, 6f, Modifier.weight(1f).fillMaxSize())
     }
 }
 
@@ -80,15 +90,15 @@ private fun createPreviewView(context: android.content.Context) = PreviewView(co
 }
 
 @Composable
-private fun StereoEye(previewView: PreviewView, displayText: String?, eyeOffset: Float, modifier: Modifier) {
+private fun StereoEye(previewView: PreviewView, displayText: String?, headPose: Offset, eyeOffset: Float, modifier: Modifier) {
     Box(modifier = modifier) {
         AndroidView(factory = { previewView }, modifier = Modifier.fillMaxSize())
-        if (!displayText.isNullOrBlank()) VrStereoCard(displayText, eyeOffset, Modifier.align(Alignment.Center))
+        if (!displayText.isNullOrBlank()) VrStereoCard(displayText, headPose, eyeOffset, Modifier.align(Alignment.Center))
     }
 }
 
 @Composable
-private fun VrStereoCard(text: String, eyeOffset: Float, modifier: Modifier = Modifier) {
+private fun VrStereoCard(text: String, headPose: Offset, eyeOffset: Float, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "vr-card-float")
     val floatY = transition.animateFloat(
         initialValue = -5f,
@@ -105,30 +115,30 @@ private fun VrStereoCard(text: String, eyeOffset: Float, modifier: Modifier = Mo
     val shape = RoundedCornerShape(24.dp)
     Box(
         modifier = modifier
-            .offset(x = eyeOffset.dp)
+            .offset(x = (headPose.x + eyeOffset).dp, y = headPose.y.dp)
             .graphicsLayer { translationY = floatY; rotationY = rotation + eyeOffset * 0.25f }
-            .size(width = 210.dp, height = 150.dp),
+            .size(width = 150.dp, height = 96.dp),
     ) {
         repeat(5) { depth ->
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .offset(x = (10 - depth * 2).dp, y = (12 - depth * 2).dp)
-                    .background(Color(0xFF173C2A).copy(alpha = 0.88f), shape),
+                    .background(Color(0xFF173C2A).copy(alpha = 0.72f), shape),
             )
         }
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .shadow(16.dp, shape)
-                .background(Color(0xF2FFFFFF), shape),
+                .background(Color(0xD9FFFFFF), shape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "${animalGlyph(text)}\n${text.uppercase()}",
+                text = text.uppercase(),
                 color = Color(0xFF18352A),
-                fontSize = 28.sp,
-                lineHeight = 44.sp,
+                fontSize = 25.sp,
+                lineHeight = 30.sp,
                 fontWeight = FontWeight.ExtraBold,
                 textAlign = TextAlign.Center,
             )
@@ -136,8 +146,43 @@ private fun VrStereoCard(text: String, eyeOffset: Float, modifier: Modifier = Mo
     }
 }
 
-private fun animalGlyph(text: String): String = when (text.trim().lowercase()) {
-    "gato", "gata" -> "🐱"
-    "perro", "perra" -> "🐶"
-    else -> "📖"
+@Composable
+private fun rememberVrHeadPose(): Offset {
+    val context = LocalContext.current
+    var pose by remember { mutableStateOf(Offset.Zero) }
+    DisposableEffect(context) {
+        val manager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val sensor = manager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        val rotation = FloatArray(9)
+        val orientation = FloatArray(3)
+        var originYaw: Float? = null
+        var originPitch: Float? = null
+        val listener = object : SensorEventListener {
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+            override fun onSensorChanged(event: SensorEvent) {
+                SensorManager.getRotationMatrixFromVector(rotation, event.values)
+                SensorManager.getOrientation(rotation, orientation)
+                if (originYaw == null) {
+                    originYaw = orientation[0]
+                    originPitch = orientation[1]
+                }
+                val yaw = angleDelta(orientation[0], originYaw ?: 0f)
+                val pitch = angleDelta(orientation[1], originPitch ?: 0f)
+                pose = Offset(
+                    x = (-yaw * 150f).coerceIn(-145f, 145f),
+                    y = (pitch * 115f).coerceIn(-85f, 85f),
+                )
+            }
+        }
+        if (sensor != null) manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
+        onDispose { manager.unregisterListener(listener) }
+    }
+    return pose
+}
+
+private fun angleDelta(value: Float, origin: Float): Float {
+    var delta = value - origin
+    while (delta > Math.PI) delta -= (Math.PI * 2).toFloat()
+    while (delta < -Math.PI) delta += (Math.PI * 2).toFloat()
+    return delta
 }
