@@ -11,6 +11,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,10 +37,12 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -86,36 +89,46 @@ import co.edu.uniautonoma.inclusivereadingar.presentation.webar.VrStereoContaine
 import co.edu.uniautonoma.inclusivereadingar.presentation.webar.shouldMountArWebView
 
 @Composable
-fun LiveStudentRoomRoute(onBackClick: () -> Unit) {
+fun LiveStudentRoomRoute(onBackClick: () -> Unit, onLogoutClick: () -> Unit) {
     val container = LocalContext.current.appContainer()
     val viewModel: LiveStudentRoomViewModel = viewModel(factory = LiveStudentRoomViewModelFactory(container.liveDomanRepository))
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    LiveStudentRoomScreen(uiState, viewModel::refresh, viewModel::toggleLocalPause, onBackClick)
+    LiveStudentRoomScreen(uiState, viewModel::refresh, viewModel::toggleLocalPause, onBackClick, onLogoutClick)
 }
 
 @Composable
-fun LiveStudentRoomScreen(uiState: LiveStudentRoomUiState, onRetry: () -> Unit, onToggleLocalPause: () -> Unit, onBackClick: () -> Unit) {
+fun LiveStudentRoomScreen(
+    uiState: LiveStudentRoomUiState,
+    onRetry: () -> Unit,
+    onToggleLocalPause: () -> Unit,
+    onBackClick: () -> Unit,
+    onLogoutClick: () -> Unit,
+) {
+    // While the student has not joined a running class the screen has no other way out:
+    // without this the system back gesture would close the whole app.
+    BackHandler(enabled = uiState.session == null, onBack = onBackClick)
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         when {
             uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-            uiState.errorMessage != null -> RoomMessage("No pudimos abrir la clase", "Estamos intentando volver a conectar.", "Intentar de nuevo", onRetry)
-            uiState.session == null -> EmptyRoom(uiState.isRealtimeConnected)
+            uiState.errorMessage != null -> RoomMessage("No pudimos abrir la clase", "Estamos intentando volver a conectar.", "Intentar de nuevo", onRetry, onBackClick)
+            uiState.session == null -> EmptyRoom(uiState.isRealtimeConnected, onBackClick, onLogoutClick)
             else -> StudentClassRoom(uiState, onToggleLocalPause, onBackClick)
         }
     }
 }
 
 @Composable
-private fun RoomMessage(title: String, message: String, actionLabel: String, onAction: () -> Unit) {
+private fun RoomMessage(title: String, message: String, actionLabel: String, onAction: () -> Unit, onBackClick: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Text(title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         Text(message, modifier = Modifier.padding(top = 12.dp, bottom = 28.dp), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         Button(onClick = onAction, modifier = Modifier.fillMaxWidth().sizeIn(minHeight = 48.dp)) { Text(actionLabel) }
+        OutlinedButton(onClick = onBackClick, modifier = Modifier.padding(top = 8.dp).fillMaxWidth().sizeIn(minHeight = 48.dp)) { Text("Volver al inicio") }
     }
 }
 
 @Composable
-private fun EmptyRoom(isRealtimeConnected: Boolean) {
+private fun EmptyRoom(isRealtimeConnected: Boolean, onBackClick: () -> Unit, onLogoutClick: () -> Unit) {
     val statusLabel = if (isRealtimeConnected) {
         "Tu profe está preparando la clase."
     } else {
@@ -203,6 +216,26 @@ private fun EmptyRoom(isRealtimeConnected: Boolean) {
                 modifier = Modifier.padding(bottom = LearningTokens.SectionGap),
                 statusDescription = statusLabel,
             )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Volver al inicio",
+                )
+            }
+            TextButton(onClick = onLogoutClick, modifier = Modifier.sizeIn(minHeight = 48.dp)) {
+                Text("Cerrar sesión")
+            }
         }
     }
 }
