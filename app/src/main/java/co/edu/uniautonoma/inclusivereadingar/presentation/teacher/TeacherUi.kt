@@ -35,6 +35,13 @@ enum class TeacherTab {
     ROOMS
 }
 
+/**
+ * The "Estudiantes" tab is hidden for now: its progress views are not functional yet
+ * (the data is saved by the backend but there is no UI that shows it). Flip to `true`
+ * to bring the tab back; the screens and routes behind it are untouched.
+ */
+private const val SHOW_STUDENTS_TAB = false
+
 @Composable
 fun TeacherBottomBar(
     activeTab: TeacherTab,
@@ -61,11 +68,13 @@ fun TeacherBottomBar(
                 selected = activeTab == TeacherTab.THEMES,
                 onClick = onThemesClick
             )
-            TeacherBottomBarItem(
-                label = "Estudiantes",
-                selected = activeTab == TeacherTab.STUDENTS,
-                onClick = onStudentsClick
-            )
+            if (SHOW_STUDENTS_TAB) {
+                TeacherBottomBarItem(
+                    label = "Estudiantes",
+                    selected = activeTab == TeacherTab.STUDENTS,
+                    onClick = onStudentsClick
+                )
+            }
             TeacherBottomBarItem(
                 label = "Tarjetas",
                 selected = activeTab == TeacherTab.WORD_CARDS,
