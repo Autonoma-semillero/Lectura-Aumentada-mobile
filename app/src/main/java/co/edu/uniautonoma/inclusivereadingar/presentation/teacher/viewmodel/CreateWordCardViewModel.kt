@@ -130,7 +130,7 @@ class CreateWordCardViewModel(
     fun save() {
         val snapshot = uiState.value
         if (!snapshot.canSave) {
-            _uiState.update { it.copy(errorMessage = "Completa estudiante, palabra y temática.") }
+            _uiState.update { it.copy(errorMessage = "Completa la palabra y la temática.") }
             return
         }
 

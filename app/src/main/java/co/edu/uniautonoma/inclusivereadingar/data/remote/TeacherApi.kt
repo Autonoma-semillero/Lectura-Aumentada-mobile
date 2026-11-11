@@ -147,22 +147,15 @@ class HttpTeacherApi(
     // per-student copies behind `/categories/:id/word-cards`. The catalog endpoint has no
     // category filter or get-by-id, so both are resolved on the client.
     override suspend fun getWordCardsForCategory(categoryId: String, accessToken: String?): List<WordCard> {
-        return fetchCatalogCards(accessToken).filter { it.categoryId == categoryId }
+        return fetchCatalogCards(accessToken).inCategory(categoryId)
     }
 
     override suspend fun getWordCardById(id: String, accessToken: String?): WordCard {
-        return fetchCatalogCards(accessToken).firstOrNull { it.id == id }
-            ?: throw IllegalStateException("No se encontró la tarjeta.")
+        return fetchCatalogCards(accessToken).requireById(id)
     }
 
-    private suspend fun fetchCatalogCards(accessToken: String?): List<WordCard> {
-        val json = JSONArray(httpClient.get(path = "/doman/cards", accessToken = accessToken))
-        return buildList {
-            for (i in 0 until json.length()) {
-                add(parseWordCard(json.getJSONObject(i).toString()))
-            }
-        }
-    }
+    private suspend fun fetchCatalogCards(accessToken: String?): List<WordCard> =
+        parseCatalogCards(httpClient.get(path = "/doman/cards", accessToken = accessToken))
 
     override suspend fun getArModels(accessToken: String?): List<ArModelOption> {
         val response = httpClient.get(path = "/assets/models", accessToken = accessToken)
@@ -187,7 +180,7 @@ class HttpTeacherApi(
         audioUrl?.let { body.put("audio_url", it) }
         learningUnitId?.let { body.put("learning_unit_id", it) }
 
-        return parseWordCard(
+        return parseCatalogCard(
             httpClient.post(
                 path = "/doman/cards",
                 body = body,
@@ -206,7 +199,7 @@ class HttpTeacherApi(
         val body = JSONObject().put("word", word)
         audioUrl?.let { body.put("audio_url", it) }
         learningUnitId?.let { body.put("learning_unit_id", it) }
-        return parseWordCard(
+        return parseCatalogCard(
             httpClient.requestRaw(
                 method = "PATCH",
                 path = "/doman/cards/$id",
@@ -324,23 +317,6 @@ class HttpTeacherApi(
                 )
             }
         }
-    }
-
-    private fun parseWordCard(rawJson: String): WordCard {
-        val item = JSONObject(rawJson)
-        val word = item.getString("word")
-        return WordCard(
-            id = item.getString("id"),
-            word = word,
-            status = item.getString("status"),
-            categoryId = item.optString("category_id").ifBlank { null },
-            learningUnitId = item.optString("learning_unit_id").ifBlank { null },
-            audioUrl = item.optString("audio_url").ifBlank { null },
-            language = item.optString("language").ifBlank { null },
-            initialLetter = item.optString("initial_letter").ifBlank { word.take(1).uppercase() },
-            timesShown = item.optInt("times_shown", 0),
-            timesAudioPlayed = item.optInt("times_audio_played", -1).takeIf { it >= 0 }
-        )
     }
 
     private fun parseArModel(item: JSONObject): ArModelOption = ArModelOption(
