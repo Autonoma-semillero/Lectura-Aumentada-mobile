@@ -4,10 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import co.edu.uniautonoma.inclusivereadingar.data.repository.TeacherContentDataSource
-import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
 import co.edu.uniautonoma.inclusivereadingar.domain.model.WordCard
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +14,6 @@ import kotlinx.coroutines.launch
 data class CategoryCardsUiState(
     val isLoading: Boolean = true,
     val cards: List<WordCard> = emptyList(),
-    val students: List<AppUser> = emptyList(),
     val errorMessage: String? = null,
     val archiveConfirmCardId: String? = null,
     val isArchiving: Boolean = false
@@ -36,20 +32,11 @@ class CategoryCardsViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             runCatching {
-                awaitAll(
-                    async { repository.getWordCardsForCategory(categoryId) },
-                    async { repository.getStudents() }
-                )
-            }.onSuccess { results ->
-                @Suppress("UNCHECKED_CAST")
-                val cards = (results[0] as List<WordCard>)
+                repository.getWordCardsForCategory(categoryId)
                     .filter { it.status != "archived" }
                     .sortedBy { it.word }
-                @Suppress("UNCHECKED_CAST")
-                val students = results[1] as List<AppUser>
-                _uiState.update {
-                    it.copy(isLoading = false, cards = cards, students = students)
-                }
+            }.onSuccess { cards ->
+                _uiState.update { it.copy(isLoading = false, cards = cards) }
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(

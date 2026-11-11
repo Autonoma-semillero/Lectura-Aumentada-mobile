@@ -35,7 +35,6 @@ interface TeacherContentDataSource {
     suspend fun getWordCardById(id: String): WordCard
     suspend fun getArModels(): List<ArModelOption>
     suspend fun createWordCard(
-        studentId: String,
         word: String,
         categoryId: String,
         audioUrl: String?,
@@ -132,7 +131,6 @@ class TeacherContentRepository(
     }
 
     override suspend fun createWordCard(
-        studentId: String,
         word: String,
         categoryId: String,
         audioUrl: String?,
@@ -140,7 +138,6 @@ class TeacherContentRepository(
     ): WordCard {
         val session = requireSession()
         return teacherApi.createWordCard(
-            studentId = studentId,
             word = word,
             categoryId = categoryId,
             audioUrl = audioUrl,

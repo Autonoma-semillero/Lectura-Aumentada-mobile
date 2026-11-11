@@ -36,7 +36,6 @@ interface TeacherApi {
     suspend fun getWordCardById(id: String, accessToken: String?): WordCard
     suspend fun getArModels(accessToken: String?): List<ArModelOption>
     suspend fun createWordCard(
-        studentId: String,
         word: String,
         categoryId: String,
         audioUrl: String?,
@@ -144,23 +143,25 @@ class HttpTeacherApi(
         return parseUsers(response)
     }
 
+    // Cards come from the reusable catalog (`doman_cards`), one per word, instead of the
+    // per-student copies behind `/categories/:id/word-cards`. The catalog endpoint has no
+    // category filter or get-by-id, so both are resolved on the client.
     override suspend fun getWordCardsForCategory(categoryId: String, accessToken: String?): List<WordCard> {
-        val response = httpClient.get(
-            path = "/categories/$categoryId/word-cards",
-            accessToken = accessToken
-        )
-        val json = JSONArray(response)
+        return fetchCatalogCards(accessToken).filter { it.categoryId == categoryId }
+    }
+
+    override suspend fun getWordCardById(id: String, accessToken: String?): WordCard {
+        return fetchCatalogCards(accessToken).firstOrNull { it.id == id }
+            ?: throw IllegalStateException("No se encontró la tarjeta.")
+    }
+
+    private suspend fun fetchCatalogCards(accessToken: String?): List<WordCard> {
+        val json = JSONArray(httpClient.get(path = "/doman/cards", accessToken = accessToken))
         return buildList {
             for (i in 0 until json.length()) {
                 add(parseWordCard(json.getJSONObject(i).toString()))
             }
         }
-    }
-
-    override suspend fun getWordCardById(id: String, accessToken: String?): WordCard {
-        return parseWordCard(
-            httpClient.get(path = "/word-cards/$id", accessToken = accessToken)
-        )
     }
 
     override suspend fun getArModels(accessToken: String?): List<ArModelOption> {
@@ -174,7 +175,6 @@ class HttpTeacherApi(
     }
 
     override suspend fun createWordCard(
-        studentId: String,
         word: String,
         categoryId: String,
         audioUrl: String?,
@@ -182,7 +182,6 @@ class HttpTeacherApi(
         accessToken: String?
     ): WordCard {
         val body = JSONObject()
-            .put("student_id", studentId)
             .put("word", word)
             .put("category_id", categoryId)
         audioUrl?.let { body.put("audio_url", it) }
@@ -190,7 +189,7 @@ class HttpTeacherApi(
 
         return parseWordCard(
             httpClient.post(
-                path = "/word-cards",
+                path = "/doman/cards",
                 body = body,
                 accessToken = accessToken
             )
@@ -210,7 +209,7 @@ class HttpTeacherApi(
         return parseWordCard(
             httpClient.requestRaw(
                 method = "PATCH",
-                path = "/word-cards/$id",
+                path = "/doman/cards/$id",
                 body = body,
                 accessToken = accessToken
             )
@@ -242,7 +241,7 @@ class HttpTeacherApi(
         val body = JSONObject().put("status", "archived")
         httpClient.requestRaw(
             method = "PATCH",
-            path = "/word-cards/$id",
+            path = "/doman/cards/$id",
             body = body,
             accessToken = accessToken
         )
@@ -329,16 +328,16 @@ class HttpTeacherApi(
 
     private fun parseWordCard(rawJson: String): WordCard {
         val item = JSONObject(rawJson)
+        val word = item.getString("word")
         return WordCard(
             id = item.getString("id"),
-            studentId = item.getString("student_id"),
-            word = item.getString("word"),
+            word = word,
             status = item.getString("status"),
             categoryId = item.optString("category_id").ifBlank { null },
             learningUnitId = item.optString("learning_unit_id").ifBlank { null },
             audioUrl = item.optString("audio_url").ifBlank { null },
             language = item.optString("language").ifBlank { null },
-            initialLetter = item.optString("initial_letter"),
+            initialLetter = item.optString("initial_letter").ifBlank { word.take(1).uppercase() },
             timesShown = item.optInt("times_shown", 0),
             timesAudioPlayed = item.optInt("times_audio_played", -1).takeIf { it >= 0 }
         )

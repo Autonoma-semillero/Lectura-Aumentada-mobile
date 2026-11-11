@@ -40,8 +40,6 @@ import androidx.compose.material.icons.rounded.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +67,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.edu.uniautonoma.inclusivereadingar.appContainer
 import co.edu.uniautonoma.inclusivereadingar.config.BackendConfig
-import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
 import co.edu.uniautonoma.inclusivereadingar.domain.model.Category
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel.CreateWordCardUiState
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel.CreateWordCardViewModel
@@ -128,7 +125,6 @@ fun CreateWordCardRoute(
         uiState = uiState,
         backendBaseUrl = backendBaseUrl,
         onBack = onBack,
-        onSelectStudent = viewModel::selectStudent,
         onWordChange = viewModel::updateWord,
         onSelectCategory = viewModel::selectCategory,
         onSelectArModel = viewModel::selectArModel,
@@ -150,7 +146,6 @@ fun CreateWordCardScreen(
     uiState: CreateWordCardUiState,
     backendBaseUrl: String,
     onBack: () -> Unit,
-    onSelectStudent: (String) -> Unit,
     onWordChange: (String) -> Unit,
     onSelectCategory: (String) -> Unit,
     onSelectArModel: (String) -> Unit,
@@ -168,7 +163,6 @@ fun CreateWordCardScreen(
     val context = LocalContext.current
     val primary = Color(0xFFE53734)
 
-    var studentMenuExpanded by remember { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
     var activeRecorder by remember { mutableStateOf<MediaRecorder?>(null) }
     var pendingRecordedAudio by remember { mutableStateOf<LocalAudioSelection?>(null) }
@@ -247,10 +241,7 @@ fun CreateWordCardScreen(
             Box(modifier = Modifier.size(48.dp))
         }
 
-        if (uiState.isLoadingStudents ||
-            uiState.isLoadingCategories ||
-            uiState.isLoadingArModels
-        ) {
+        if (uiState.isLoadingCategories || uiState.isLoadingArModels) {
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -265,21 +256,6 @@ fun CreateWordCardScreen(
                     .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Selecciona el Estudiante",
-                    fontWeight = FontWeight.Bold
-                )
-                StudentDropdown(
-                    students = uiState.students,
-                    selectedStudentId = uiState.selectedStudentId,
-                    expanded = studentMenuExpanded,
-                    onExpandedChange = { studentMenuExpanded = it },
-                    onSelectStudent = {
-                        onSelectStudent(it)
-                        studentMenuExpanded = false
-                    }
-                )
-
                 Text(
                     text = "Detalles de la Palabra",
                     fontWeight = FontWeight.Bold
@@ -545,10 +521,6 @@ fun CreateWordCardScreen(
                             done = uiState.selectedCategoryId != null
                         )
                         StatusRow(
-                            label = "Estudiante seleccionado",
-                            done = uiState.selectedStudentId != null
-                        )
-                        StatusRow(
                             label = "Audio listo",
                             done = uiState.hasAudio
                         )
@@ -628,47 +600,6 @@ fun CreateWordCardScreen(
             onWordCardsClick = onWordCardsClick,
             onRoomsClick = onRoomsClick
         )
-    }
-}
-
-@Composable
-private fun StudentDropdown(
-    students: List<AppUser>,
-    selectedStudentId: String?,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    onSelectStudent: (String) -> Unit
-) {
-    val selectedStudent = students.firstOrNull { it.id == selectedStudentId }
-    Box {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onExpandedChange(true) },
-            shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
-        ) {
-            Text(
-                text = selectedStudent?.displayName ?: selectedStudent?.email ?: "Selecciona un estudiante",
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 18.dp),
-                color = if (selectedStudent == null) Color(0xFF64748B) else Color(0xFF111827)
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) },
-            modifier = Modifier.fillMaxWidth(0.92f)
-        ) {
-            students.forEach { student ->
-                DropdownMenuItem(
-                    text = {
-                        Text(student.displayName ?: student.email)
-                    },
-                    onClick = { onSelectStudent(student.id) }
-                )
-            }
-        }
     }
 }
 

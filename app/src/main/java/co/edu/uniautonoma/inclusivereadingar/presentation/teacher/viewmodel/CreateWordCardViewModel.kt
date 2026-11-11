@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import co.edu.uniautonoma.inclusivereadingar.data.remote.BackendException
 import co.edu.uniautonoma.inclusivereadingar.data.repository.TeacherContentDataSource
-import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
 import co.edu.uniautonoma.inclusivereadingar.domain.model.ArModelOption
 import co.edu.uniautonoma.inclusivereadingar.domain.model.AudioUploadInput
 import co.edu.uniautonoma.inclusivereadingar.domain.model.Category
@@ -32,14 +31,11 @@ sealed interface TeacherAudioSource {
 }
 
 data class CreateWordCardUiState(
-    val isLoadingStudents: Boolean = true,
     val isLoadingCategories: Boolean = true,
     val isLoadingArModels: Boolean = true,
     val isSaving: Boolean = false,
-    val students: List<AppUser> = emptyList(),
     val categories: List<Category> = emptyList(),
     val arModels: List<ArModelOption> = emptyList(),
-    val selectedStudentId: String? = null,
     val word: String = "",
     val selectedCategoryId: String? = null,
     val selectedArModelId: String? = null,
@@ -50,7 +46,7 @@ data class CreateWordCardUiState(
     val saved: Boolean = false
 ) {
     val canSave: Boolean
-        get() = selectedStudentId != null && word.isNotBlank() && selectedCategoryId != null
+        get() = word.isNotBlank() && selectedCategoryId != null
 
     val hasAudio: Boolean
         get() = audioSource != null
@@ -67,10 +63,6 @@ class CreateWordCardViewModel(
 
     init {
         loadInitialData()
-    }
-
-    fun selectStudent(id: String) {
-        _uiState.update { it.copy(selectedStudentId = id, errorMessage = null) }
     }
 
     fun updateWord(value: String) {
@@ -164,7 +156,6 @@ class CreateWordCardViewModel(
                     )
                 }
                 repository.createWordCard(
-                    studentId = requireNotNull(snapshot.selectedStudentId),
                     word = snapshot.word.trim(),
                     categoryId = requireNotNull(snapshot.selectedCategoryId),
                     audioUrl = finalAudioUrl,
@@ -214,18 +205,15 @@ class CreateWordCardViewModel(
         viewModelScope.launch {
             runCatching {
                 coroutineScope {
-                    val students = async { repository.getStudents() }
                     val categories = async { repository.getCategories() }
                     val arModels = async { repository.getArModels() }
-                    Triple(students.await(), categories.await(), arModels.await())
+                    categories.await() to arModels.await()
                 }
-            }.onSuccess { (students, categories, arModels) ->
+            }.onSuccess { (categories, arModels) ->
                 _uiState.update {
                     it.copy(
-                        isLoadingStudents = false,
                         isLoadingCategories = false,
                         isLoadingArModels = false,
-                        students = students,
                         categories = categories.sortedBy { category -> category.sortOrder },
                         arModels = arModels
                     )
@@ -233,7 +221,6 @@ class CreateWordCardViewModel(
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(
-                        isLoadingStudents = false,
                         isLoadingCategories = false,
                         isLoadingArModels = false,
                         errorMessage = error.toUiMessage("No fue posible cargar la información inicial.")
