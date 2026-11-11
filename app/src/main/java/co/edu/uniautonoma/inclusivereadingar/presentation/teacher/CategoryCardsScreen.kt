@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import co.edu.uniautonoma.inclusivereadingar.appContainer
-import co.edu.uniautonoma.inclusivereadingar.domain.model.AppUser
 import co.edu.uniautonoma.inclusivereadingar.domain.model.WordCard
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel.CategoryCardsViewModel
 import co.edu.uniautonoma.inclusivereadingar.presentation.teacher.viewmodel.CategoryCardsViewModelFactory
@@ -77,7 +76,6 @@ fun CategoryCardsRoute(
         categoryName = categoryName,
         categoryId = categoryId,
         cards = uiState.cards,
-        students = uiState.students,
         isLoading = uiState.isLoading,
         isArchiving = uiState.isArchiving,
         errorMessage = uiState.errorMessage,
@@ -102,7 +100,6 @@ fun CategoryCardsScreen(
     categoryName: String,
     categoryId: String,
     cards: List<WordCard>,
-    students: List<AppUser>,
     isLoading: Boolean,
     isArchiving: Boolean,
     errorMessage: String?,
@@ -121,7 +118,6 @@ fun CategoryCardsScreen(
     onRoomsClick: () -> Unit
 ) {
     val primary = Color(0xFFE53734)
-    val studentsById = students.associateBy { it.id }
 
     if (archiveConfirmCardId != null) {
         val card = cards.firstOrNull { it.id == archiveConfirmCardId }
@@ -250,9 +246,6 @@ fun CategoryCardsScreen(
                         items(cards, key = { it.id }) { card ->
                             WordCardListItem(
                                 card = card,
-                                studentName = studentsById[card.studentId]
-                                    ?.let { it.displayName ?: it.email }
-                                    ?: card.studentId,
                                 onEditClick = { onEditCardClick(card.id) },
                                 onDeleteClick = { onArchiveRequest(card.id) }
                             )
@@ -289,7 +282,6 @@ fun CategoryCardsScreen(
 @Composable
 private fun WordCardListItem(
     card: WordCard,
-    studentName: String,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
@@ -339,38 +331,6 @@ private fun WordCardListItem(
                             modifier = Modifier.size(16.dp)
                         )
                     }
-                }
-                Text(
-                    text = studentName,
-                    fontSize = 13.sp,
-                    color = Color(0xFF64748B)
-                )
-
-                val statusLabel = when (card.status) {
-                    "new" -> "Nueva"
-                    "active" -> "Activa"
-                    "completed" -> "Completada"
-                    else -> card.status
-                }
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = when (card.status) {
-                        "completed" -> Color(0xFFDCFCE7)
-                        "active" -> Color(0xFFEFF6FF)
-                        else -> Color(0xFFF1F5F9)
-                    }
-                ) {
-                    Text(
-                        text = statusLabel,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        color = when (card.status) {
-                            "completed" -> Color(0xFF166534)
-                            "active" -> Color(0xFF1D4ED8)
-                            else -> Color(0xFF475569)
-                        },
-                        fontWeight = FontWeight.SemiBold
-                    )
                 }
             }
 
